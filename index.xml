@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>NiceSeven&#39;s Website</title>
+    <link>https://NiceSeven.github.io/</link>
+    <description>Recent content on NiceSeven&#39;s Website</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Mon, 13 Jan 2020 17:39:52 +0800</lastBuildDate>
+    
+	<atom:link href="https://NiceSeven.github.io/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>XCTF-Pwn-hello pwn</title>
+      <link>https://NiceSeven.github.io/post/2020/01/13/xctf-pwn-hello-pwn/</link>
+      <pubDate>Mon, 13 Jan 2020 17:39:52 +0800</pubDate>
+      
+      <guid>https://NiceSeven.github.io/post/2020/01/13/xctf-pwn-hello-pwn/</guid>
+      <description>test</description>
+    </item>
+    
+    <item>
+      <title>About</title>
+      <link>https://NiceSeven.github.io/about/</link>
+      <pubDate>Mon, 13 Jan 2020 17:21:54 +0800</pubDate>
+      
+      <guid>https://NiceSeven.github.io/about/</guid>
+      <description>My name is 17</description>
+    </item>
+    
+  </channel>
+</rss>

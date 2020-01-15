@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>Pwn on NiceSeven&#39;s Website</title>
-    <link>https://niceseven.github.io/tags/pwn/</link>
-    <description>Recent content in Pwn on NiceSeven&#39;s Website</description>
+    <title>XCTF on NiceSeven&#39;s Website</title>
+    <link>https://niceseven.github.io/categories/xctf/</link>
+    <description>Recent content in XCTF on NiceSeven&#39;s Website</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <lastBuildDate>Wed, 15 Jan 2020 20:46:28 +0800</lastBuildDate>
     
-	<atom:link href="https://niceseven.github.io/tags/pwn/index.xml" rel="self" type="application/rss+xml" />
+	<atom:link href="https://niceseven.github.io/categories/xctf/index.xml" rel="self" type="application/rss+xml" />
     
     
     <item>

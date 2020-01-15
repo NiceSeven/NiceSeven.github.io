@@ -36,18 +36,18 @@
 <main>
 <h1 id="level0">level0</h1>
 <p>首先checksec 看看开启了什么防护</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200115164710285.png" alt="image-20200115164710285"></p>
+<p><img src="/images/image-20200115164710285.png" alt="image-20200115164710285"></p>
 <p>64位的程序</p>
 <p>开启了NX：内存栈不可执行保护机制，传入栈的数据不可直接执行，可以使用rop链绕过</p>
 <p>本地运行一下看看，输出一个Hello,World等待输入</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200115165004628.png" alt="image-20200115165004628"></p>
+<p><img src="/images/image-20200115165004628.png" alt="image-20200115165004628"></p>
 <p>拖入IDA分析，F5反编译main函数</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200115165116402.png" alt="image-20200115165116402"></p>
+<p><img src="/images/image-20200115165116402.png" alt="image-20200115165116402"></p>
 <p>进入vulnerable_function()函数</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200115165359604.png" alt="image-20200115165359604"></p>
+<p><img src="/images/image-20200115165359604.png" alt="image-20200115165359604"></p>
 <p>漏洞很明显了一个80h的栈可以读入0x200的数据，明显的栈溢出</p>
 <p>我们查看程序有没有后门，shift+f12查看字符串存在callsystem()函数调用system(&quot;/bin/sh&rdquo;)</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200115170025722.png" alt="image-20200115170025722"></p>
+<p><img src="/images/image-20200115170025722.png" alt="image-20200115170025722"></p>
 <p>编写exp</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/python</span>
 <span style="color:#75715e">#coding=UTF-8</span>
@@ -61,7 +61,7 @@ sh<span style="color:#f92672">.</span>recv()
 sh<span style="color:#f92672">.</span>sendline(payload)
 sh<span style="color:#f92672">.</span>interactive()
 </code></pre></div><p>注意这里的payload填充0x80后还需要填充8个字节(64位)的数据来覆盖rbp，之后才是覆盖retn</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200115172339397.png" alt="image-20200115172339397"></p>
+<p><img src="/images/image-20200115172339397.png" alt="image-20200115172339397"></p>
 
 </main>
 

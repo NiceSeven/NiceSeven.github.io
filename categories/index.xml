@@ -2,21 +2,21 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Categories on NiceSeven&#39;s Website</title>
-    <link>https://NiceSeven.github.io/categories/</link>
+    <link>https://niceseven.github.io/categories/</link>
     <description>Recent content in Categories on NiceSeven&#39;s Website</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Mon, 13 Jan 2020 17:39:52 +0800</lastBuildDate>
+    <lastBuildDate>Wed, 15 Jan 2020 19:03:07 +0800</lastBuildDate>
     
-	<atom:link href="https://NiceSeven.github.io/categories/index.xml" rel="self" type="application/rss+xml" />
+	<atom:link href="https://niceseven.github.io/categories/index.xml" rel="self" type="application/rss+xml" />
     
     
     <item>
       <title>CTF</title>
-      <link>https://NiceSeven.github.io/categories/ctf/</link>
-      <pubDate>Mon, 13 Jan 2020 17:39:52 +0800</pubDate>
+      <link>https://niceseven.github.io/categories/ctf/</link>
+      <pubDate>Wed, 15 Jan 2020 19:03:07 +0800</pubDate>
       
-      <guid>https://NiceSeven.github.io/categories/ctf/</guid>
+      <guid>https://niceseven.github.io/categories/ctf/</guid>
       <description></description>
     </item>
     

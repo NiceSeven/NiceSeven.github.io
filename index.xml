@@ -6,10 +6,39 @@
     <description>Recent content on NiceSeven&#39;s Website</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Wed, 15 Jan 2020 20:46:28 +0800</lastBuildDate>
+    <lastBuildDate>Thu, 06 Feb 2020 14:47:29 +0800</lastBuildDate>
     
 	<atom:link href="https://niceseven.github.io/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>XCTF Pwn CGfsb</title>
+      <link>https://niceseven.github.io/post/2020/02/06/xctf-pwn-cgfsb/</link>
+      <pubDate>Thu, 06 Feb 2020 14:47:29 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/02/06/xctf-pwn-cgfsb/</guid>
+      <description>CGfsb checksec查看开启了什么防护
+32位程序，开启了NX、Canary found
+运行一下程序看看功能
+传入2个字符串，输出2个字符串
+拖入IDA看看
+可以看到存在一个if判断pwnme==8执行cat flag，printf(&amp;amp;s)明显的格式化字符串漏洞，所以思路是利用格式化字符串漏洞覆盖内存使pwnme==8满足判断
+变量pwnme的位置在bss段，地址为0x0804a068
+bss段（bss segment）通常是指用来存放程序中未初始化的全局变量的一块内存区域，bss段属于静态内存分配，地址不变
+格式化字符串利用思路
+1、确定覆盖的地址overwrite addr
+pwnme_addr = 0x0804a068
+2、确定需要覆盖的地址所在栈中的偏移量overwrite offset，即确定一下存储格式化字符串的地址是 printf()将要输出的第几个参数
+从伪代码可以看到从message处接收传入的数据到&amp;amp;s，后续通过printf(&amp;amp;s)输出
+可以通过手工向message传入数据进行偏移计算
+a的ascii码为61，可以看到传入的数据在栈中的偏移为10
+3、利用&amp;hellip;[overwrite addr]&amp;hellip;.%[overwrite offset]$n进行覆盖
+%n,不输出字符，但是把已经成功输出的字符个数写入对应的整型指针参数所指的变量。
+payload = p32(pwnme_addr) + &amp;lsquo;aaaa&amp;rsquo; + %10$n
+payload的含义为将pwnme的地址+aaaa传入栈中，由于前面我们计算了偏移所以知道了我们传入的数据在栈偏移的10处也就是esp+10处，%10$n的含义就是将%n写入到栈偏移的10处也就是pwnme+aaaa之后，所以可以导致在执行printf()时可以将偏移10处所指向的地址(pwnme_addr)储存的值修改为%n之前的字符串个数，这里%n之前的字符串为pwnme_addr+aaaa，因为在32位程序中一个地址占4个字符，加上后面的aaaa的4个字符，所以这里将pwnme_addr地址内存的值改为了4+4=8，所以也就是将pwnme这个变量的值改为了8，可以满足后续的if判断从而cat flag
+编写exp
+#!/usr/bin/env python #-*-coding=UTF-8-*- from pwn import * #context(arch = &amp;#39;i386&amp;#39;, os = &amp;#39;linux&amp;#39;,log_level=&amp;#39;debug&amp;#39;) sh = remote(&amp;#39;111.198.29.45&amp;#39;,52583) sh.recvuntil(&amp;#39;please tell me your name:&amp;#39;) sh.sendline(&amp;#39;17&amp;#39;) pwnme_addr = 0x804a068 payload = p32(0x804a068) + &amp;#39;aaaa&amp;#39; + &amp;#39;%10$n&amp;#39; sh.</description>
+    </item>
     
     <item>
       <title>XCTF Pwn Level2</title>

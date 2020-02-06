@@ -36,26 +36,26 @@
 <main>
 <h1 id="cgfsb">CGfsb</h1>
 <p>checksec查看开启了什么防护</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200206145300139.png" alt="image-20200206145300139"></p>
+<p><img src="/images/image-20200206145300139.png" alt="image-20200206145300139"></p>
 <p>32位程序，开启了NX、Canary found</p>
 <p>运行一下程序看看功能</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200206145831140.png" alt="image-20200206145831140"></p>
+<p><img src="/images/image-20200206145831140.png" alt="image-20200206145831140"></p>
 <p>传入2个字符串，输出2个字符串</p>
 <p>拖入IDA看看</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200206150046605.png" alt="image-20200206150046605"></p>
+<p><img src="/images/image-20200206150046605.png" alt="image-20200206150046605"></p>
 <p>可以看到存在一个if判断pwnme==8执行cat flag，printf(&amp;s)明显的格式化字符串漏洞，所以思路是利用格式化字符串漏洞覆盖内存使pwnme==8满足判断</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200206150502697.png" alt="image-20200206150502697"></p>
+<p><img src="/images/image-20200206150502697.png" alt="image-20200206150502697"></p>
 <p>变量pwnme的位置在bss段，地址为0x0804a068</p>
 <p>bss段（bss segment）通常是指用来存放程序中未初始化的全局变量的一块内存区域，bss段属于静态内存分配，地址不变</p>
 <p>格式化字符串利用思路</p>
 <p>1、确定覆盖的地址overwrite addr</p>
 <p>pwnme_addr = 0x0804a068</p>
 <p>2、确定需要覆盖的地址所在栈中的偏移量overwrite offset，即确定一下存储格式化字符串的地址是 printf()将要输出的第几个参数</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200206154017267.png" alt="image-20200206154017267"></p>
+<p><img src="/images/image-20200206154017267.png" alt="image-20200206154017267"></p>
 <p>从伪代码可以看到从message处接收传入的数据到&amp;s，后续通过printf(&amp;s)输出</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200206154223647.png" alt="image-20200206154223647"></p>
+<p><img src="/images/image-20200206154223647.png" alt="image-20200206154223647"></p>
 <p>可以通过手工向message传入数据进行偏移计算</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200206154555707.png" alt="image-20200206154555707"></p>
+<p><img src="/images/image-20200206154555707.png" alt="image-20200206154555707"></p>
 <p>a的ascii码为61，可以看到传入的数据在栈中的偏移为10</p>
 <p>3、利用&hellip;[overwrite addr]&hellip;.%[overwrite offset]$n进行覆盖</p>
 <p>%n,不输出字符，但是把已经成功输出的字符个数写入对应的整型指针参数所指的变量。</p>
@@ -73,7 +73,7 @@ pwnme_addr <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x80
 payload <span style="color:#f92672">=</span> p32(<span style="color:#ae81ff">0x804a068</span>) <span style="color:#f92672">+</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">aaaa</span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">+</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">%</span><span style="color:#e6db74">10$n</span><span style="color:#e6db74">&#39;</span>
 sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">leave your message please:</span><span style="color:#e6db74">&#39;</span>,payload)
 sh<span style="color:#f92672">.</span>interactive()
-</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200206170246665.png" alt="image-20200206170246665"></p>
+</code></pre></div><p><img src="/images/image-20200206170246665.png" alt="image-20200206170246665"></p>
 
 </main>
 

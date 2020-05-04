@@ -41,22 +41,22 @@
 <p>3、fast bin attack</p>
 <p>4、use one_gadget</p>
 <p>大致功能是添加、编辑、显示、删除，明显的堆题</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200424162416907.png" alt="image-20200424162416907"></p>
+<p><img src="%5Cimages%5Cimage-20200424162416907.png" alt="image-20200424162416907"></p>
 <p>漏洞点：delete中无UAF，关键漏洞在edit中</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200424162627034.png" alt="image-20200424162627034"></p>
+<p><img src="%5Cimages%5Cimage-20200424162627034.png" alt="image-20200424162627034"></p>
 <p>sub_E26中</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200424162700811.png" alt="image-20200424162700811"></p>
+<p><img src="%5Cimages%5Cimage-20200424162700811.png" alt="image-20200424162700811"></p>
 <p>在执行edit的时候要求输入一个size，这个size会与add的时候输入的size作比较，满足edit输入的size减去add输入的size为10，则将我们接下来能够输入的数据+1字节，从而触发off-by-one漏洞</p>
 <p>利用off-by-one漏洞可以执行chunk extend overlapping漏洞，结合unsorted bin的机制可以leak出libc中的main_arena地址，利用leak出的地址来计算偏移libc</p>
 <h2 id="1利用off-by-onechunk-overlapping来leak出libc地址">1、利用off-by-one+chunk overlapping来leak出libc地址</h2>
 <p>1、add4个chunk</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200424163729804.png" alt="image-20200424163729804"></p>
+<p><img src="%5Cimages%5Cimage-20200424163729804.png" alt="image-20200424163729804"></p>
 <p>2、执行off-by-one，从chunk0溢出\x91到chunk1</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200424163755441.png" alt="image-20200424163755441"></p>
+<p><img src="%5Cimages%5Cimage-20200424163755441.png" alt="image-20200424163755441"></p>
 <p>3、free掉chunk1来切割unsorted bin也就是我们伪造的0x90大小的chunk</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200424163826669.png" alt="image-20200424163826669"></p>
+<p><img src="%5Cimages%5Cimage-20200424163826669.png" alt="image-20200424163826669"></p>
 <p>4、add chunk1原本的大小56字节=0x38&lt;=0x40(chunk自动对齐)</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200424164132983.png" alt="image-20200424164132983"></p>
+<p><img src="%5Cimages%5Cimage-20200424164132983.png" alt="image-20200424164132983"></p>
 <p>需要leak的地址就落在chunk2中了，因为chunk2并没有free所以直接show chunk2可以leak出地址</p>
 <p>在leak步骤中需要修改的chunk1的size字段的值要满足unsorted bin也就是说要大于fastbin的0x80，然后free就会将这个满足的chunk块写入unsorted bin中</p>
 <p>才会在下一个chunk中的fd和bk中泄露出libc的main_arena地址，因为</p>
@@ -64,18 +64,18 @@
 <p>2、当一个较大的 chunk 被分割成两半后，如果剩下的部分大于 MINSIZE（0x20），就会被放到 unsorted bin 中</p>
 <h2 id="2利用chunk-overlappingfastbin-attach来迁移chunk">2、利用chunk overlapping+fastbin attach来迁移chunk</h2>
 <p>主要利用chunk中的fd字段来迁移chunk到malloc_hook附件，使我们下次add的chunk就是在malloc_hook附近然后edit这个chunk来修改内容(指针)</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200423231821108.png" alt="image-20200423231821108"></p>
+<p><img src="c%5Cimages%5Cimage-20200423231821108.png" alt="image-20200423231821108"></p>
 <p>下图就是修改后的fd字段指向malloc_hook附近，然后add得到这里的内存空间作为chunk</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200423233346236.png" alt="image-20200423233346236"></p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200423234011071.png" alt="image-20200423234011071"></p>
+<p><img src="%5Cimages%5Cimage-20200423233346236.png" alt="image-20200423233346236"></p>
+<p><img src="%5Cimages%5Cimage-20200423234011071.png" alt="image-20200423234011071"></p>
 <p>然后利用edit来修改chunk也就是修改malloc_hook和realloc_hook(他们俩相邻)</p>
 <h2 id="3利用伪造的chunk来修改malloc_hook和realloc_hook">3、利用伪造的chunk来修改malloc_hook和realloc_hook</h2>
 <p>注意：</p>
 <p>这里利用的one_gadget条件无法达成，所以需要利用realloc来调整rsp的值来达成getshell的条件</p>
 <p><a href="https://blog.csdn.net/Maxmalloc/article/details/102535427">https://blog.csdn.net/Maxmalloc/article/details/102535427</a></p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200424181802458.png" alt="image-20200424181802458"></p>
+<p><img src="%5Cimages%5Cimage-20200424181802458.png" alt="image-20200424181802458"></p>
 <p>修改__malloc_hook指向realloc，然后修改__realloc_hook来指向one_gedget，最后执行一次add就会执行calloc-&gt;malloc_hook-&gt;realloc-&gt;realloc_hook-&gt;one_gadget-&gt;execve(&quot;/bin/sh&quot;)</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200424173821065.png" alt="image-20200424173821065"></p>
+<p><img src="%5Cimages%5Cimage-20200424173821065.png" alt="image-20200424173821065"></p>
 <p>exp</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
 <span style="color:#75715e">#-*- coding=UTF-8 -*-</span>

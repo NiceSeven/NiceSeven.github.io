@@ -39,14 +39,14 @@
 <p>1、计算不同函数栈的距离</p>
 <p>2、生成shellcode</p>
 <p>3、栈溢出</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200329171855344.png" alt="image-20200329171855344"></p>
+<p><img src="/images/image-20200329171855344.png" alt="image-20200329171855344"></p>
 <p>32位，保护基本没开，可以栈执行、栈溢出</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200329172007648.png" alt="image-20200329172007648"></p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200329174400968.png" alt="image-20200329174400968"></p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200329172901172.png" alt="image-20200329172901172"></p>
+<p><img src="/images/image-20200329172007648.png" alt="image-20200329172007648"></p>
+<p><img src="/images/image-20200329174400968.png" alt="image-20200329174400968"></p>
+<p><img src="/images/image-20200329172901172.png" alt="image-20200329172901172"></p>
 <p>漏洞主要在chall()函数和vuln()函数中</p>
 <p>首先会打印出s的地址也就是栈开始的地址，然后strlen()计算我们传入的字符串的长度到\x00截止，memchr()主要功能是把传入的字符串到\n之后的数据置为0，\n之前的不影响，然后打印出我们传入的数据，最后我们需要绕过strcmp()也就是我们传入的数据要与crashme相同，这里可以使用\x00截断绕过，也就是我们传入的数据最开始8个字节要为&quot;crashme\x00&quot;，绕过之后我们就可以进去vuln函数，vuln函数里面就是执行memcpy()，将存我们输入的s里面的内容传给dest最多可以传0x400字节，但是dest栈大小只有0x32所以这里可以造成栈溢出</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200329174431799.png" alt="image-20200329174431799"></p>
+<p><img src="/images/image-20200329174431799.png" alt="image-20200329174431799"></p>
 <p>这里的问题关键就是我们怎么getshell，回顾此程序的防护措施和chall函数中的fget，我们可以发现s的栈大小有0x40c，fgets可以读1023和字节到s栈中，没开启NX所以我们可以传个shellcode到s栈上，我们要注意chall函数中的memchr(&amp;s, &lsquo;\n&rsquo;, v0)的作用是把到\n之后的数据截断，在\n之前的不受影响，所以我们可以构造“crashme\x00+shellcode+\n&quot;,那么我们的shellcode就存在栈上了</p>
 <p>所以思路就是首先把shellcode传到栈上，然后通过溢出dest返回到shellcode在s栈上的地址执行shellcode，所以就出现了两个问题</p>
 <p>1、我们要读多少个字节到s中可以使得vuln函数中执行memcpy的时候可以把dest的ret覆盖</p>
@@ -63,11 +63,11 @@ payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span>
 pause()<span style="color:#75715e">#把程序暂停在这里，可以理解为下断点</span>
 p<span style="color:#f92672">.</span>sendline(payload)
 </code></pre></div><p>运行脚本后跳出gdb调试</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200329210713118.png" alt="image-20200329210713118"></p>
+<p><img src="/images/image-20200329210713118.png" alt="image-20200329210713118"></p>
 <p>因为传入了许多垃圾数据所以我们按c程序运行到vuln函数会出错，根据报错我们可以发现vuln函数中栈的ebp被垃圾数据AnAA覆盖了，</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200329212011155.png" alt="image-20200329212011155"></p>
+<p><img src="/images/image-20200329212011155.png" alt="image-20200329212011155"></p>
 <p>可以发现memcpy(&amp;dest, &amp;src, n)之后传入到dest的数据到ebp的距离是8+14这里的8是最开始传入的crashme\x00这个8个字节，然后因为retn之前有leave指令，所以实际覆盖到ret还需要+4(32位程序)</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200329212745096.png" alt="image-20200329212745096"></p>
+<p><img src="/images/image-20200329212745096.png" alt="image-20200329212745096"></p>
 <p>所以要memcpy到dest的数据要8+14+4=26个字节才能覆盖到retn</p>
 <p>所以payload = &lsquo;crashme\x00' + &lsquo;a&rsquo;*14 + &lsquo;a'*4 +  shellcode_addr</p>
 <p>那么shellcode的地址如何确定呢？</p>
@@ -87,15 +87,15 @@ p<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74"></spa
 p<span style="color:#f92672">.</span>sendline(payload)
 pause()
 p<span style="color:#f92672">.</span>interactive()
-</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200330013801557.png" alt="image-20200330013801557"></p>
+</code></pre></div><p><img src="/images/image-20200330013801557.png" alt="image-20200330013801557"></p>
 <p>可以看到我们传入的shellcode是从jhh开始</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200330011937903.png" alt="image-20200330011937903"></p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200330012017732.png" alt="image-20200330012017732"></p>
+<p><img src="/images/image-20200330011937903.png" alt="image-20200330011937903"></p>
+<p><img src="/images/image-20200330012017732.png" alt="image-20200330012017732"></p>
 <p>esp和ebp可以确定一个栈空间，所以x/40s $esp就是查看从esp栈顶开始往后的40个地址的数据</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200330012034106.png" alt="image-20200330012034106"></p>
+<p><img src="/images/image-20200330012034106.png" alt="image-20200330012034106"></p>
 <p>从上面的调试可以看出shellcode的地址是0xffd77af0，而题目给出的s栈开始地址为0xffd77b0c</p>
 <p>s栈开始到shellcode的偏移为0xffd77b0c-0xffd77af0=0x1也就是28</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200330012312977.png" alt="image-20200330012312977"></p>
+<p><img src="/images/image-20200330012312977.png" alt="image-20200330012312977"></p>
 <p>所以我们可以构造最终的exp</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
 <span style="color:#75715e">#-*- coding=UTF-8 -*-</span>
@@ -119,7 +119,7 @@ sh<span style="color:#f92672">.</span>sendline(payload)
 <span style="color:#75715e">#pause()</span>
 sh<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">cat flag</span><span style="color:#e6db74">&#39;</span>)
 sh<span style="color:#f92672">.</span>interactive()
-</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200330014620587.png" alt="image-20200330014620587"></p>
+</code></pre></div><p><img src="/images/image-20200330014620587.png" alt="image-20200330014620587"></p>
 <p>方法2.利用ret2libc，栈溢出retn到printf_plt，构造栈，打印出got_printf，然后在getshell</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python">leak_payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">crashme</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">.</span>ljust(<span style="color:#ae81ff">26</span>,<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span>)
 leak_payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p32(elf<span style="color:#f92672">.</span>plt[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">printf</span><span style="color:#e6db74">&#39;</span>])<span style="color:#75715e">#retn到printf()</span>

@@ -39,8 +39,8 @@
 <p>1、64位栈溢出</p>
 <p>2、leak地址</p>
 <p>4、libc函数地址计算</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200415174427943.png" alt="image-20200415174427943"></p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200415173634899.png" alt="image-20200415173634899"></p>
+<p><img src="/images/image-20200415174427943.png" alt="image-20200415174427943"></p>
+<p><img src="/images/image-20200415173634899.png" alt="image-20200415173634899"></p>
 <p>思路</p>
 <p>1、栈溢出使用puts_plt来leak出puts_got地址</p>
 <p>2、通过puts_got地址来计算基地址，从而计算出system、/bin/sh地址</p>
@@ -77,7 +77,7 @@ payload2 <span style="color:#f92672">=</span> <span style="color:#e6db74"></span
 sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">story!</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,payload2)
 sh<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">cat flag</span><span style="color:#e6db74">&#39;</span>)
 sh<span style="color:#f92672">.</span>interactive()
-</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200415174340059.png" alt="image-20200415174340059"></p>
+</code></pre></div><p><img src="/images/image-20200415174340059.png" alt="image-20200415174340059"></p>
 
 </main>
 

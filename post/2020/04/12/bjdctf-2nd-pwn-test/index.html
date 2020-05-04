@@ -35,17 +35,17 @@
 
 <main>
 <h1 id="bjdctf-2nd-pwn-test">BJDCTF 2nd Pwn Test</h1>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200412224946044.png" alt="image-20200412224946044"></p>
+<p><img src="/images/image-20200412224946044.png" alt="image-20200412224946044"></p>
 <p>ssh连接linux环境，存在flag文件非root无权限读写</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200412225059396.png" alt="image-20200412225059396"></p>
+<p><img src="/images/image-20200412225059396.png" alt="image-20200412225059396"></p>
 <p>给出了源码闯入参数给数组cmd，经过一系列过滤，最后执行system，所以直接system(&ldquo;cat flag&rdquo;)行不通</p>
 <p>看看环境变量</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200412225450407.png" alt="image-20200412225450407"></p>
+<p><img src="/images/image-20200412225450407.png" alt="image-20200412225450407"></p>
 <p>使用grep加上正则匹配来筛选出，经过过滤后还有那些命令能执行</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200412225635230.png" alt="image-20200412225635230"></p>
+<p><img src="/images/image-20200412225635230.png" alt="image-20200412225635230"></p>
 <p>注意这里的-v选项表示：显示不包含匹配文本的所有行，-E表示使用使用ERE模式（扩展正则表达式）的正则匹配来匹配，后门接的就是正则语句</p>
 <p>发现od这条命令还可以用，od指令会读取所给予的文件的内容，并将其内容以八进制字码呈现出来</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200412233813647.png" alt="image-20200412233813647"></p>
+<p><img src="/images/image-20200412233813647.png" alt="image-20200412233813647"></p>
 <p>066146-000401就是flag的八进制字节码，转成字符串就行了</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/uer/bin/env python3                                                               #-*- coding=UTF-8 -*-</span>
 <span style="color:#f92672">import</span> binascii
@@ -55,12 +55,12 @@ tmp <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><spa
         <span style="color:#66d9ef">print</span>(binascii<span style="color:#f92672">.</span>unhexlify(bytes(hex(int(i,<span style="color:#ae81ff">8</span>))[<span style="color:#ae81ff">2</span>:],encoding<span style="color:#f92672">=</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">UTF-8</span><span style="color:#e6db74">&#34;</span>))<span style="color:#f92672">.</span>decode(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">utf-8</span><span style="color:#e6db74">&#34;</span>)[::<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>],end<span style="color:#f92672">=</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">&#34;</span>)
         <span style="color:#66d9ef">except</span> <span style="color:#a6e22e">Exception</span> <span style="color:#66d9ef">as</span> e:
             <span style="color:#66d9ef">continue</span> 
-</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200412234348244.png" alt="image-20200412234348244"></p>
+</code></pre></div><p><img src="/images/image-20200412234348244.png" alt="image-20200412234348244"></p>
 <p>非预期解</p>
 <p>x86_64命令没有禁用</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200412234517837.png" alt="image-20200412234517837"></p>
+<p><img src="/images/image-20200412234517837.png" alt="image-20200412234517837"></p>
 <p>原理就是：x86_64链接的是setarch命令，而setarch默认运行程序是/bin/sh，注意这里的权限是root</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200412234607160.png" alt="image-20200412234607160"></p>
+<p><img src="/images/image-20200412234607160.png" alt="image-20200412234607160"></p>
 
 </main>
 

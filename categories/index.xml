@@ -6,7 +6,7 @@
     <description>Recent content in Categories on NiceSeven&#39;s Website</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sat, 02 May 2020 22:52:15 +0800</lastBuildDate>
+    <lastBuildDate>Wed, 10 Mar 2021 21:58:55 +0800</lastBuildDate>
     
 	<atom:link href="https://niceseven.github.io/categories/index.xml" rel="self" type="application/rss+xml" />
     
@@ -14,9 +14,18 @@
     <item>
       <title>BUUCTF</title>
       <link>https://niceseven.github.io/categories/buuctf/</link>
-      <pubDate>Sat, 02 May 2020 22:52:15 +0800</pubDate>
+      <pubDate>Wed, 10 Mar 2021 21:58:55 +0800</pubDate>
       
       <guid>https://niceseven.github.io/categories/buuctf/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>WDCUP2020</title>
+      <link>https://niceseven.github.io/categories/wdcup2020/</link>
+      <pubDate>Wed, 13 May 2020 23:03:22 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/categories/wdcup2020/</guid>
       <description></description>
     </item>
     

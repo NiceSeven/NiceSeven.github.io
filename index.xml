@@ -120,6 +120,40 @@ exp
     </item>
     
     <item>
+      <title>BUUCTF Pwn VN_2020_simpleHeap</title>
+      <link>https://niceseven.github.io/post/2020/05/16/buuctf-pwn-vn_2020_simpleheap/</link>
+      <pubDate>Sat, 16 May 2020 14:53:38 +0800</pubDate>
+      
+      <guid>https://niceseven.github.io/post/2020/05/16/buuctf-pwn-vn_2020_simpleheap/</guid>
+      <description>BUUCTF Pwn VN_2020_simpleHeap 考点：
+1、off-by-one
+2、chunk extend/overlapping
+3、fastbin attack、House Of Spirit
+4、unsortedbin attack
+5、__malloc_hook、__realloc_hook、__libc_realloc、one_gadget
+增、改、查、删，sub_A39()内定义了alarm可以用ida keypatch插件patch
+add中定义了两个数组分别存chunk指针和其对应的size
+edit中的sub_C39存在off-by-one漏洞，for循环的边界没定义好
+delete中指针都置NULL，不存在UAF漏洞
+利用思路：
+1、off-by-one造成下一块chunk extend/overlapping
+2、unsortedbin attack，切割大的chunk造成main_arena泄露在剩下的chunk的fd处，然后show查看leak出libc
+这里减去0x58是因为leak出的是main_arena+88处的地址所以-0x58才是main_arena开始的地址，利用main_arena地址减去libc中的main_arena偏移就能得出libc的基地址，从而能计算其他libc中函数的地址
+在chunk0利用off-by-one，覆写chunk1的size，使chunk1的大小为chunk1+chunk2=0xe1&amp;gt;max_fastbin，然后free chunk1因为chunk1的size被修改为超过最大的fastbin的大小了，所以chunk1和chunk2会被认为是一个整体free放入unsortedbin中与main_arena构成链表，这个时候chunk1的fd指针指向main_arena，所以这个时候能够show chunk1就能leak出libc，但是chunk1是被释放了所以无法show，此时利用unsortedbin的机制，我们再add一个0x60大小的chunk，因为会先去unsortedbin中检查是否有符合的大小的已经被释放的chunk，因为刚刚伪造chunk1为unsortedbin大小的chunk并且释放并入了unsortedbin，所以系统就会将这个0xe0大小的chunk切割出0x60+0x10给我们的add 0x60的操作，这个时候0xe0的chunk被切割剩下的0x70也就是chunk2这个位置的chunk被并入unsortedbin，所以此时指向main_arena的指针落在chunk2的fd处，但是实际上chunk2是未free的所以可以show chunk2来泄露出main_arena也就是libc的地址（main_arena处于libc中）
+3、利用unsortedbin与fastbin的机制使unsorted下的chunk与fastbin下的chunk重叠（关键）
+4、利用chunk重叠和fastbin attack修改(利用edit功能)重叠的chunk fd指针，从而申请faker chunk到malloc_hook前面满足glibc检测的合适位置(0x7f的位置)，写入one_gadget到malloc_hook
+使chunk重叠的关键如图，在free伪造的chunk1之后，我add了两个0x60，第一个0x60的chunk是从已经free掉的并入unsortedbin的chunk 0xe0中切割来的，剩下的0x70分配给我们第二次add0x60了，这里因为伪造size使系统认为chunk1和chunk2是一同被释放了，但是实际上chunk2是没有被释放的，所以就造成了我们第二次add0x60得到的chunk是chunk2处的空间，对于程序来讲第二次add0x60的编号是4了，所以就造成了chunk2和chunk4是同一块空间就称之为chunk重叠，这个时候free(4)，因为chunk4大小为0x60+0x10是满足fastbin的，所以并入fastbin，逻辑上chunk4被释放了所以chunk4的fd应该指向下一块fastbin，但是chunk2和chunk4本质上是同一块空间并且chunk2的是未被释放的，这个时候edit chunk2就是修改已经被释放的chunk4，所以通过edit2就能修改chunk4的fd指向我们想让系统给我们分配到的空间，修改过后fastbin-&amp;gt;chunk4/chunk2-&amp;gt;我们期望的内存位置(在malloc_hook附近)，所以再add两次，第二次就是分配到malloc_hook附近的内存空间，写入内容就是写入到malloc_hook处了，当然分配到的空间为了满足glibc的检查要找的空间要满足size位符合大小，常见是size位是0x7f(本题中就是malloc_hook-35处的位置)
+本题realloc_hook与malloc_hook是连在一起的，所以写入内容的时候可以同时伪造malloc_hook-&amp;gt;libc_realloc-&amp;gt;realloc_hook-&amp;gt;one_gadget
+5、因为直接写one_gadget可能不能满足其约束条件造成getshell失败，可以利用__malloc_hook、__realloc_hook、__libc_realloc相互配合来控制栈从而控制rsp使栈环境满足one_gadget的约束条件
+具体就是malloc_hook-&amp;gt;libc_realloc-&amp;gt;realloc_hook-&amp;gt;one_gadget，其中可以控制libc_realloc函数中汇编指令的偏移地址从而控制push的数量来控制rsp来满足约束条件
+可以看libc_realloc函数的汇编指令来理解如何控制rsp，如果我们将malloc_hook指向0x00007f98f4b36c2也就是libc_realloc+2处我就可以少push r15让rsp+8(64位一个指令8字节)，因为push和pop的次数是一致的，若push次数减少则会压低堆栈，改变栈环境，以此类推若指向libc_realloc+4处的位置就少两次push，使rsp+16，最多可以少push 6个，rsp+48
+例如我们首先使malloc_hook-&amp;gt;libc_realloc+0开始执行，运行到one_gadget中查看是否满足rsp+0x30=NULL的约束条件
+可以发现此时的rsp+0x30并不满足反而rsp+0x30+16=rsp+0x40处满足，所以理论上我们少push两次就可以使rsp‘=rsp+0x10满足rsp’+0x30=rsp+0x10+0x30=NULL的约束条件，但是实际上栈的变化是很复杂的所以实际情况下也可能满足不了，所以可以通过多调试libc_realloc的偏移来控制push的数量以找到满足约束条件的栈情况
+本题最终要使malloc_hook-&amp;gt;libc_realloc+13处也就是少push6次，才能满足rsp+0x30=NULL的约束条件
+#!/usr/bin/env python2 #-*- coding=UTF-8 -*- from pwn import * import time context.log_level = &amp;#39;debug&amp;#39; if args.R: sh = remote(&amp;#39;node3.buuoj.cn&amp;#39;,27556) else: sh = process(&amp;#39;./simpleHeap_noalarm&amp;#39;) elf = ELF(&amp;#39;.</description>
+    </item>
+    
+    <item>
       <title>WDCUP2020 Pwn Boom1</title>
       <link>https://niceseven.github.io/post/2020/05/13/wdcup2020-pwn-boom1/</link>
       <pubDate>Wed, 13 May 2020 23:03:22 +0800</pubDate>

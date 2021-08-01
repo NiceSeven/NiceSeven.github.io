@@ -38,19 +38,19 @@
 <p>考点</p>
 <p>1、ret2systemcall</p>
 <p>2、rop</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200518165649806.png" alt="image-20200518165649806"></p>
+<p><img src="/images/image-20200518165649806.png" alt="image-20200518165649806"></p>
 <p>明显的栈溢出</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200518165743419.png" alt="image-20200518165743419"></p>
+<p><img src="/images/image-20200518165743419.png" alt="image-20200518165743419"></p>
 <p>只开启了NX，程序中没有system和/bin/sh，但是存在int 0x80中断可以执行系统调用，可以用其来构造execve(0xb,&quot;/bin/sh&rdquo;,0,0)，bss段可以写可读，可以rop链调用read写入&rdquo;/bin/sh\x00&quot;到bss</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200518170231484.png" alt="image-20200518170231484"></p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200518170256836.png" alt="image-20200518170256836"></p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200518170157608.png" alt="image-20200518170157608"></p>
+<p><img src="/images/image-20200518170231484.png" alt="image-20200518170231484"></p>
+<p><img src="/images/image-20200518170256836.png" alt="image-20200518170256836"></p>
+<p><img src="/images/image-20200518170157608.png" alt="image-20200518170157608"></p>
 <p>execve(0xb,&quot;/bin/sh&rdquo;,0,0)的参数从左往右依次传入eax、ebx、ecx、edx，找满足条件的gadget</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200518170615314.png" alt="image-20200518170615314"></p>
+<p><img src="/images/image-20200518170615314.png" alt="image-20200518170615314"></p>
 <p>本题栈偏移存在个坑点</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200518165649806.png" alt="image-20200518165649806"></p>
+<p><img src="/images/image-20200518165649806.png" alt="image-20200518165649806"></p>
 <p>v4到ebp的offset 0x14，再加上存在leave指令需要覆盖ebp的0x4 = 0x18，但是用pattern测试实际offset是0x20</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200518171135340.png" alt="image-20200518171135340"></p>
+<p><img src="/images/image-20200518171135340.png" alt="image-20200518171135340"></p>
 <p>exp</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#75715e">#!/usr/bin/env python2</span>
 <span style="color:#75715e">#-*- coding=UTF-8 -*-</span>
@@ -84,7 +84,7 @@ sh<span style="color:#f92672">.</span>sendlineafter(<span style="color:#e6db74">
 sh<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">/bin/sh</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span>)
 sh<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74"></span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">cat flag</span><span style="color:#e6db74">&#34;</span>)
 sh<span style="color:#f92672">.</span>interactive()
-</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20200518171423633.png" alt="image-20200518171423633"></p>
+</code></pre></div><p><img src="/images/image-20200518171423633.png" alt="image-20200518171423633"></p>
 
 </main>
 

@@ -38,16 +38,16 @@
 <p>考点：</p>
 <p>1、seccmop()</p>
 <p>2、汇编执行系统调用sys_open()、sys_read()、sys_write()</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20201029234614744.png" alt="image-20201029234614744"></p>
+<p><img src="/images/image-20201029234614744.png" alt="image-20201029234614744"></p>
 <p>seccomp 是 secure computing 的缩写，其是 Linux kernel 从2.6.23版本引入的一种简洁的 sandboxing 机制。在 Linux 系统里，大量的系统调用（system call）直接暴露给用户态程序。但是，并不是所有的系统调用都被需要，而且不安全的代码滥用系统调用会对系统造成安全威胁。seccomp安全机制能使一个进程进入到一种“安全”运行模式，该模式下的进程只能调用4种系统调用（system call），即 read(), write(), exit() 和 sigreturn()，否则进程便会被终止。简单来说seccomp 就是一个白名单，每个进程进行系统调用（system call）时，kernal 都会检查对应的白名单以确认该进程是否有权限使用这个系统调用。这个白名单是用 berkeley package filter（BPF）格式书写的。</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20201030000107450.png" alt="image-20201030000107450"></p>
+<p><img src="/images/image-20201030000107450.png" alt="image-20201030000107450"></p>
 <p>prctl(38, 1, 0, 0, 0)允许线程进行的唯一系统调用是read（2），write（2），*exit（2）（但不是exit_group（2））和sigreturn（2）。也就是system和onegadget都没了,还会使子进程也这么处理；而prctl(22，2)表示设置沙箱规则，从而可以实现改变函数的系统调用（允许或者禁止）</p>
 <p>使用工具seccmop-tools判断启用了seccomp机制后可以使用哪些系统调用（白名单）</p>
 <div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-shell" data-lang="shell">sudo gem install seccmop-tools
-</code></pre></div><p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20201106171630359.png" alt="image-20201106171630359"></p>
+</code></pre></div><p><img src="/images/image-20201106171630359.png" alt="image-20201106171630359"></p>
 <p>发现可以使用open()、read()、write()</p>
 <p>回到main函数分析程序，直接读入shellcode然后再执行shellcode，所以直接传入读入flag的shellcode就行</p>
-<p><img src="D:%5CGithub%5Cmyblog%5Cstatic%5Cimages%5Cimage-20201106171931631.png" alt="image-20201106171931631"></p>
+<p><img src="/images/image-20201106171931631.png" alt="image-20201106171931631"></p>
 <p>具体流程是open()打开flag文件，read()读入文件内容，write()输出文件内容</p>
 <p>在写exp之前需要知道在汇编语言中如何调用open()、read()、write()函数</p>
 <p>系统调用流程</p>
